@@ -635,7 +635,7 @@ public void onExecute() throws Exception
       boolean bacnet = "true".equalsIgnoreCase(feld(f, namen, "bacnetExport"));
       if (name.length() == 0) continue;
 
-      String slot = javax.baja.sys.SlotPath.escape(name);
+      String slot = javax.baja.naming.SlotPath.escape(name);
       if (ziel.get(slot) != null) { vorhanden++; continue; }
 
       javax.baja.control.BControlPoint p = erzeugePunkt(typ);
@@ -649,7 +649,7 @@ public void onExecute() throws Exception
 
       javax.baja.sys.Property prop = ziel.add(slot, p);
       if (anz.length() > 0)
-        ziel.setDisplayName(prop, javax.baja.naming.BFormat.make(anz), null);
+        ziel.setDisplayName(prop, javax.baja.util.BFormat.make(anz), null);
       neu++;
     }
     catch (Exception e) { fehler++; fl.append(e.toString()).append(" "); }
@@ -715,7 +715,7 @@ private void setzeFacets(javax.baja.control.BControlPoint p, String typ, String 
       java.util.StringTokenizer st = new java.util.StringTokenizer(states, ";");
       java.util.ArrayList tags = new java.util.ArrayList();
       while (st.hasMoreTokens())
-        tags.add(javax.baja.sys.SlotPath.escape(st.nextToken().trim()));
+        tags.add(javax.baja.naming.SlotPath.escape(st.nextToken().trim()));
       javax.baja.sys.BEnumRange range = javax.baja.sys.BEnumRange.make(
         (String[]) tags.toArray(new String[0]));
       p.setFacets(javax.baja.sys.BFacets.makeEnum(range));
