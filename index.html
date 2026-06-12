@@ -138,11 +138,11 @@
 </header>
 
 <main>
-  <div id="drop" tabindex="0" role="button" aria-label="Excel-Datei wählen">
-    <div class="big">PointCheckout-Excel hier ablegen</div>
-    <div class="small">oder klicken zum Auswählen — <kbd>.xlsx</kbd> mit Sheet «PointCheckout» · Die Datei verlässt deinen Rechner nicht.</div>
+  <div id="drop" tabindex="0" role="button" aria-label="Excel- oder CSV-Datei wählen">
+    <div class="big">PointCheckout-Excel oder Niagara-CSV hier ablegen</div>
+    <div class="small">oder klicken zum Auswählen — <kbd>.xlsx</kbd> mit Sheet «PointCheckout» oder eine zuvor exportierte <kbd>.csv</kbd> (Projekt fortsetzen) · Die Datei verlässt deinen Rechner nicht.</div>
   </div>
-  <input type="file" id="file" accept=".xlsx,.xlsm,.xls">
+  <input type="file" id="file" accept=".xlsx,.xlsm,.xls,.csv">
 
   <div id="standalone">
     <span class="dimtxt">Ohne Punktliste:</span>
@@ -264,6 +264,15 @@ function setStatus(ok, msg){
 }
 
 function handleFile(file){
+  if (/\.csv$/i.test(file.name)){
+    const r = new FileReader();
+    r.onload = e => {
+      try { importCSV(e.target.result, file.name); }
+      catch (err){ setStatus(false, "Fehler: " + err.message); hideResults(); }
+    };
+    r.readAsText(file, "utf-8");
+    return;
+  }
   srcFileName = file.name.replace(/\.(xlsx|xlsm|xls)$/i, "");
   const reader = new FileReader();
   reader.onload = e => {
@@ -282,6 +291,71 @@ function handleFile(file){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+
+/* ── Niagara-CSV wieder einlesen (Projekt fortsetzen) ────────────────────── */
+function importCSV(text, fname){
+  srcFileName = fname.replace(/(_auswahl)?_niagara\.csv$/i, "").replace(/\.csv$/i, "");
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim().length);
+  if (!lines.length) throw new Error("CSV ist leer.");
+  const H = parseCSVLine(lines[0]).map(s => s.trim());
+  const ci = n => H.indexOf(n);
+  if (ci("name") < 0 || ci("type") < 0)
+    throw new Error("Keine Niagara-CSV (Spalten «name»/«type» fehlen). Excel-PointCheckout bitte als .xlsx laden.");
+
+  const NIA2CPO = { "bacnet:NumericPoint":"Analog Input", "bacnet:BooleanPoint":"Binary Input",
+                    "bacnet:EnumWritable":"MultiState Value" };
+  const BAC2CPO = { analogInput:"Analog Input", analogOutput:"Analog Output", analogValue:"Analog Value",
+                    binaryInput:"Binary Input", binaryOutput:"Binary Output", binaryValue:"Binary Value",
+                    multiStateValue:"MultiState Value" };
+  points = [];
+  for (let i = 1; i < lines.length; i++){
+    const f = parseCSVLine(lines[i]);
+    const v = n => { const k = ci(n); return k >= 0 && k < f.length ? f[k].trim() : ""; };
+    const name = v("name");
+    if (!name) continue;
+    const nia = v("type");
+    const bac = v("bacnetObjectType");
+    const cpo = BAC2CPO[bac] || NIA2CPO[nia] || "Analog Value";
+    points.push({
+      name,
+      display: v("displayName"),
+      type: cpo,
+      niagaraType: nia || TYPE_MAP[cpo],
+      bacType: bac || BAC_MAP[cpo],
+      units: v("units"),
+      stateText: v("facets.stateText"),
+      terminal: v("terminalAddress"),
+      plant: v("plant"),
+      fallback: v("fallback"), low: v("lowLimit"), high: v("highLimit"),
+      alarm: v("alarmEnable") === "true",
+      bacnet: v("bacnetExport") === "true",
+      signal: v("signalType") ? v("signalType").split(";").filter(Boolean) : [],
+      nc: v("contact") === "NC",
+      manual: true
+    });
+  }
+  if (!points.length) throw new Error("Keine Punkte in der CSV gefunden.");
+  setStatus(true, points.length + " Punkte geladen aus «" + fname + "» – alle Zeilen editierbar");
+  buildUI();
+}
+
+function parseCSVLine(z){
+  const teile = []; let sb = ""; let inQ = false;
+  for (let i = 0; i < z.length; i++){
+    const c = z[i];
+    if (inQ){
+      if (c === '"'){ if (z[i+1] === '"'){ sb += '"'; i++; } else inQ = false; }
+      else sb += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { teile.push(sb); sb = ""; }
+      else sb += c;
+    }
+  }
+  teile.push(sb);
+  return teile;
 }
 
 function parseSheet(ws){
