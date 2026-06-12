@@ -632,8 +632,42 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 
 public void onExecute()
 {
-  try { importiere(); }
+  try
+  {
+    String pfad = getString("csvPfad").trim();
+    if (pfad.startsWith("station:"))
+    {
+      setString("statusText", inspiziere(pfad));
+      return;
+    }
+    importiere();
+  }
   catch (Exception e) { setString("statusText", "FEHLER: " + e.toString()); }
+}
+
+// ── Inspektions-Modus: steht in csvPfad ein ORD (station:...) statt
+//    eines Dateipfads, werden Slots+Typen dieser Komponente angezeigt.
+//    Praktisch um unbekannte Treiber-Punkte (z.B. Panelbus) zu erkunden.
+private String inspiziere(String ord) throws Exception
+{
+  javax.baja.sys.BComponent c = (javax.baja.sys.BComponent)
+    javax.baja.naming.BOrd.make(ord).get(javax.baja.sys.Sys.getStation());
+
+  StringBuffer sb = new StringBuffer();
+  sb.append("KOMPONENTE: ").append(c.getType().toString()).append(" | ");
+
+  javax.baja.sys.SlotCursor c1 = c.getProperties();
+  while (c1.next())
+  {
+    javax.baja.sys.Property pr = (javax.baja.sys.Property) c1.slot();
+    javax.baja.sys.BValue v = c.get(pr);
+    sb.append(pr.getName()).append("=").append(v.getType().toString());
+    if (v instanceof javax.baja.sys.BEnum)
+      sb.append("[tag:").append(((javax.baja.sys.BEnum) v).getTag())
+        .append(",ord:").append(((javax.baja.sys.BEnum) v).getOrdinal()).append("]");
+    sb.append(" | ");
+  }
+  return sb.toString();
 }
 
 private void importiere() throws Exception
