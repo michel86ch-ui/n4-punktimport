@@ -618,8 +618,10 @@ private void importiere() throws Exception
   javax.baja.sys.BComponent ziel = (javax.baja.sys.BComponent)
     javax.baja.naming.BOrd.make(zielS).get(javax.baja.sys.Sys.getStation());
 
-  javax.baja.file.BIFile datei = (javax.baja.file.BIFile)
-    javax.baja.naming.BOrd.make(pfad).get(javax.baja.sys.Sys.getStation());
+  String fp = pfad.startsWith("file:") ? pfad.substring(5) : pfad;
+  javax.baja.file.BIFile datei = javax.baja.file.BFileSystem.INSTANCE.findFile(
+    new javax.baja.file.FilePath(fp));
+  if (datei == null) throw new Exception("CSV nicht gefunden: " + pfad);
   java.io.BufferedReader br = new java.io.BufferedReader(
     new java.io.InputStreamReader(datei.getInputStream(), "UTF-8"));
 
