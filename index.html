@@ -607,7 +607,11 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 //    -> statusText zeigt: Neu / Vorhanden / Fehler
 //
 // WAS DER ROBOT MACHT:
-// - Legt pro CSV-Zeile den Punkt im zielOrdner an (Typ aus Spalte "type")
+// - Legt im zielOrdner automatisch Unterordner AI/AO/AV/BI/BO/BV/MV an
+//   und sortiert die Punkte nach Typ ein
+// - Anzeigename im Baum = DP-Name (z.B. 2076_VG2_L07_B803_M0)
+//   Die Beschreibung steht im Slot "beschreibung" am Punkt
+// - Legt pro CSV-Zeile den Punkt an (Typ aus Spalte "type")
 // - Setzt Facets: Einheit (Numeric), trueText/falseText (Boolean),
 //   EnumRange aus stateText (MultiState)
 // - Setzt Fallback-Wert (Writables)
@@ -673,6 +677,7 @@ private void importiere() throws Exception
       String name  = feld(f, namen, "name");
       String anz   = feld(f, namen, "displayName");
       String typ   = feld(f, namen, "type");
+      String bacTyp= feld(f, namen, "bacnetObjectType");
       String unit  = feld(f, namen, "units");
       String states= feld(f, namen, "facets.stateText");
       String fb    = feld(f, namen, "fallback");
@@ -683,7 +688,8 @@ private void importiere() throws Exception
       if (name.length() == 0) continue;
 
       String slot = javax.baja.naming.SlotPath.escape(name);
-      if (ziel.get(slot) != null) { vorhanden++; continue; }
+      javax.baja.sys.BComponent ordner = holeUnterordner(ziel, kuerzelVon(bacTyp, typ));
+      if (ordner.get(slot) != null) { vorhanden++; continue; }
 
       javax.baja.control.BControlPoint p = erzeugePunkt(typ);
       if (p == null) { fehler++; fl.append(name).append("(Typ?) "); continue; }
@@ -694,9 +700,10 @@ private void importiere() throws Exception
       if (alarm) haengeAlarmAn(p, typ, lowS, highS);
       if (bacnet) bacnetAnz++;
 
-      javax.baja.sys.Property prop = ziel.add(slot, p);
+      javax.baja.sys.Property prop = ordner.add(slot, p);
+      ordner.setDisplayName(prop, javax.baja.util.BFormat.make(name), null);
       if (anz.length() > 0)
-        ziel.setDisplayName(prop, javax.baja.util.BFormat.make(anz), null);
+        p.add("beschreibung", javax.baja.sys.BString.make(anz));
       neu++;
     }
     catch (Exception e) { fehler++; fl.append(e.toString()).append(" "); }
@@ -741,6 +748,31 @@ private String feld(String[] f, java.util.ArrayList namen, String name)
   int i = namen.indexOf(name);
   if (i < 0 || i >= f.length) return "";
   return f[i].trim();
+}
+
+// ── Typ-Kuerzel fuer Unterordner: AI/AO/AV/BI/BO/BV/MV ──
+private String kuerzelVon(String bacTyp, String typ)
+{
+  if (bacTyp.equals("analogInput"))     return "AI";
+  if (bacTyp.equals("analogOutput"))    return "AO";
+  if (bacTyp.equals("analogValue"))     return "AV";
+  if (bacTyp.equals("binaryInput"))     return "BI";
+  if (bacTyp.equals("binaryOutput"))    return "BO";
+  if (bacTyp.equals("binaryValue"))     return "BV";
+  if (bacTyp.equals("multiStateValue")) return "MV";
+  if (typ.indexOf("Numeric") >= 0) return "AV";
+  if (typ.indexOf("Boolean") >= 0) return "BV";
+  return "DIV";
+}
+
+// ── Unterordner im Ziel holen oder anlegen ──
+private javax.baja.sys.BComponent holeUnterordner(javax.baja.sys.BComponent ziel, String name)
+{
+  javax.baja.sys.BObject o = ziel.get(name);
+  if (o instanceof javax.baja.sys.BComponent) return (javax.baja.sys.BComponent) o;
+  javax.baja.sys.BFolder f = new javax.baja.sys.BFolder();
+  ziel.add(name, f);
+  return f;
 }
 
 private javax.baja.control.BControlPoint erzeugePunkt(String typ)
