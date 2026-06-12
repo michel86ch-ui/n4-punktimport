@@ -139,19 +139,31 @@ Auf der Startseite <b>«Robot-Code herunterladen»</b> klicken (geht ohne Punktl
 Ziel: grüner Punkt <b>«Program is up-to-date»</b>. Das orange «not signed» ist normal und stört nicht.</div>
 
 <h2 id="csv">4 · CSV in die Station bringen</h2>
-<div class="warn note">⚠️ <b>Nicht</b> mit <code>C:\…</code>-Pfaden arbeiten – der Security Manager der Station blockiert direkte Dateizugriffe. Immer den <code>shared</code>-Ordner + <code>file:^</code>-ORD verwenden.</div>
+<div class="warn note">⚠️ <b>Achtung, der häufigste Stolperstein:</b> Es existieren bis zu <b>drei</b> verschiedene «shared»-Ordner – nur einer ist der richtige!
+<ul>
+<li>❌ <code>My File System → User Home → shared</code> – Workbench-Ordner, Station sieht ihn nicht</li>
+<li>❌ <code>My File System → User Home → stations → &lt;Name&gt; → shared</code> – Offline-Kopie der Station</li>
+<li>✅ Das <b>Home der laufenden Station</b> – liegt typischerweise unter <code>C:\ProgramData\Niagara4.15\…\stations\&lt;Name&gt;\</code></li>
+</ul></div>
+
+<h3>Schritt für Schritt (narrensicher)</h3>
 <ol>
-  <li>Nav-Baum: <b>Station → Files</b> → Ordner <code>shared</code> öffnen (falls fehlt: Rechtsklick Files → New → Folder)</li>
-  <li>Die heruntergeladene CSV per Copy/Paste oder Drag&amp;Drop aus «My File System» hineinkopieren</li>
-  <li>Im Property Sheet von PunktImport eintragen:</li>
+  <li><b>csvPfad</b> im Property Sheet auf <code>file:^test.csv</code> setzen (Dateiname anpassen) → Save</li>
+  <li><b>Execute</b> ausführen → <b>Refresh</b> → statusText lesen</li>
+  <li>Es erscheint zunächst absichtlich: <code>CSV nicht gefunden: … | StationHome: C:\ProgramData\…</code><br>
+      → Der Robot verrät dir den <b>exakten Ordner</b>, in dem die Station ihre Dateien sucht</li>
+  <li>Diesen <b>StationHome-Pfad kopieren</b> und im Windows Explorer in die Adresszeile einfügen<br>
+      (ProgramData ist versteckt – Pfad einfach direkt eintippen/einfügen)</li>
+  <li>Die CSV <b>genau in diesen Ordner</b> kopieren</li>
+  <li><b>Execute → Refresh</b> → <code>Neu: 226 | Vorhanden: 0 | Fehler: 0</code> 🎉</li>
 </ol>
-<pre>csvPfad     file:^shared/punkte.csv
-zielOrdner  station:|slot:/Test_Punkte     (Beispiel – siehe unten)</pre>
-<p><b>zielOrdner exakt ermitteln:</b> Im Nav-Baum auf den Zielordner doppelklicken → in der Adressleiste steht der komplette ORD, z.B. <code>local:|foxs:|station:|slot:/Test_Punkte</code> → nur den Teil ab <code>station:</code> übernehmen. Der Ordner muss bereits existieren.</p>
-<div class="note">Auf dem Jace ist der Ablauf identisch: CSV via FileTransferClient in den shared-Ordner, <code>file:^shared/…</code> bleibt unverändert gültig.</div>
+
+<div class="note"><b>Hintergrund:</b> Das <code>^</code> in <code>file:^test.csv</code> bedeutet «StationHome der laufenden Station». Je nach Setup endet dieser Pfad bereits auf <code>\shared</code> (z.B. bei lokalen Comfort&amp;Energy-Stationen unter ProgramData) – dann gehört die CSV direkt dorthin und der Pfad ist <code>file:^test.csv</code> ohne weiteres Unterverzeichnis. Auf einem Jace ist das StationHome <code>/opt/niagara/stations/&lt;Name&gt;/</code> – dort liegt die CSV dann via FileTransferClient im Unterordner <code>shared</code> und der Pfad lautet <code>file:^shared/test.csv</code>. Im Zweifel: Schritt 2–3 oben verrät immer den richtigen Ort.</div>
+<div class="note">Die Workbench-Ansicht <b>Station → Files</b> zeigt übrigens genau dieses StationHome – dort siehst du, ob die CSV angekommen ist (Copy/Paste in diese Ansicht funktioniert je nach Build, der Windows-Explorer-Weg ist zuverlässiger).</div>
 
 <h2 id="execute">5 · Import ausführen</h2>
 <ol>
+  <li><b>zielOrdner exakt ermitteln:</b> Im Nav-Baum auf den Zielordner <b>doppelklicken</b> → in der Adressleiste steht der ORD, z.B. <code>local:|foxs:|station:|slot:/Test_Punkte</code> → nur den Teil ab <code>station:</code> in den Slot übernehmen: <code>station:|slot:/Test_Punkte</code>. Der Ordner muss bereits existieren.</li>
   <li>Property Sheet: <b>Save</b> (Diskette)</li>
   <li>Rechtsklick auf <b>PunktImport → Actions → Execute</b></li>
   <li><b>Refresh</b> drücken → <code>statusText</code> lesen:</li>
@@ -171,8 +183,10 @@ zielOrdner  station:|slot:/Test_Punkte     (Beispiel – siehe unten)</pre>
 <td>Direkter C:\-Pfad verwendet → CSV in <code>shared</code> legen, <code>file:^shared/…</code> als csvPfad</td></tr>
 <tr><td><code>UnresolvedException: /Plant/…</code> (zielOrdner)</td>
 <td>Ordner existiert dort nicht → ORD via Doppelklick + Adressleiste ermitteln</td></tr>
-<tr><td><code>CSV nicht gefunden: file:^shared/…</code></td>
-<td>Datei liegt nicht im shared-Ordner der laufenden Station → Abschnitt 4 prüfen</td></tr>
+<tr><td><code>CSV nicht gefunden: … | StationHome: …</code></td>
+<td>Kein Fehler, sondern Wegweiser: Den angezeigten StationHome-Pfad im Explorer öffnen und die CSV genau dorthin kopieren (Abschnitt 4). Liegt sie in einem Unterordner, den Unterordner in csvPfad ergänzen: <code>file:^shared/…</code></td></tr>
+<tr><td>Copy/Paste oder Drag&amp;Drop in Workbench-Files schlägt fehl («Clipboard is empty»)</td>
+<td>Workbench-Clipboard-Eigenheit → CSV stattdessen per Windows Explorer direkt ins StationHome kopieren</td></tr>
 <tr><td>statusText bleibt leer</td>
 <td>Refresh-Button drücken; Execute wirklich über Actions ausgelöst?</td></tr>
 <tr><td><code>uses unchecked or unsafe operations</code></td>
