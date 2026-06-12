@@ -561,17 +561,27 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 // 1. Workbench: Station -> Config -> Rechtsklick -> New -> Program
 //    (Palette "program", Komponente "Program"), Name: PunktImport
 // 2. Doppelklick -> Slots-Tab -> 3 Slots anlegen (alle baja:String):
-//      csvPfad      z.B. /opt/niagara/stations/DEINESTATION/shared/punkte.csv
-//                   (lokale Windows-Station: C:/Users/.../punkte.csv)
-//      zielOrdner   z.B. station:|slot:/Punkte   (Ordner muss existieren!)
+//      csvPfad      file:^shared/punkte.csv
+//                   (ORD relativ zum Station-Home - NICHT C:\... verwenden,
+//                   der Security Manager blockiert direkte Dateizugriffe!)
+//      zielOrdner   z.B. station:|slot:/Punkte   (Ordner muss existieren!
+//                   Exakten Pfad pruefen: Doppelklick auf den Ordner ->
+//                   ORD steht in der Adressleiste, Teil ab station: kopieren)
 //      statusText   bleibt leer - zeigt nach Execute das Ergebnis
 // 3. Edit-Tab -> diesen Code (ab "public void onExecute") in den
 //    Code-Bereich einfuegen -> Compile & Save
-//    !! WICHTIG bei Fehler "package javax.baja.control does not exist":
-//    Im Edit-Tab oben den Bereich Imports/Module-Liste oeffnen und die
-//    Module  control, alarm, units  hinzufuegen (+ Knopf), dann erneut
-//    kompilieren. Ohne diese Eintraege kennt der Compiler die Klassen nicht.
-// 4. CSV auf die Station kopieren (FileTransferClient -> shared-Ordner)
+//    !! WICHTIG bei Fehler "package ... does not exist":
+//    Im Imports-Tab via "Import Package" diese Pakete hinzufuegen:
+//      control-rt : javax.baja.control
+//      alarm-rt   : javax.baja.alarm.ext
+//      alarm-rt   : javax.baja.alarm.ext.offnormal
+//      baja       : javax.baja.naming
+//      baja       : javax.baja.units
+//      baja       : javax.baja.file
+// 4. CSV in die Station kopieren - am einfachsten in Workbench:
+//    Nav-Baum -> Station -> Files -> Ordner "shared" (ggf. anlegen)
+//    -> CSV per Copy/Paste oder Drag&Drop hineinkopieren
+//    (auf dem Jace: FileTransferClient -> shared-Ordner)
 // 5. Rechtsklick auf Program -> Actions -> Execute
 //    -> statusText zeigt: Neu / Vorhanden / Fehler
 //
@@ -608,8 +618,10 @@ private void importiere() throws Exception
   javax.baja.sys.BComponent ziel = (javax.baja.sys.BComponent)
     javax.baja.naming.BOrd.make(zielS).get(javax.baja.sys.Sys.getStation());
 
+  javax.baja.file.BIFile datei = (javax.baja.file.BIFile)
+    javax.baja.naming.BOrd.make(pfad).get(javax.baja.sys.Sys.getStation());
   java.io.BufferedReader br = new java.io.BufferedReader(
-    new java.io.InputStreamReader(new java.io.FileInputStream(pfad), "UTF-8"));
+    new java.io.InputStreamReader(datei.getInputStream(), "UTF-8"));
 
   String kopf = br.readLine();
   if (kopf == null) { setString("statusText", "CSV ist leer"); br.close(); return; }
