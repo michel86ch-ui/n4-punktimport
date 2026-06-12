@@ -7,114 +7,96 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
-    --bg:#10151d; --panel:#171e29; --panel2:#1d2634; --line:#2b3648;
-    --txt:#dbe4f0; --dim:#7d8ba1; --hw:#ffb000;            /* Honeywell-Amber */
+    --bg:#10151d; --panel:#171e29; --panel2:#1d2634; --zebra:#1a2130; --line:#2b3648;
+    --txt:#dbe4f0; --dim:#7d8ba1; --hw:#ffb000;
     --ai:#4da3ff; --ao:#2f7fd6; --av:#8fc3ff;
     --bi:#54c878; --bo:#2fa45c; --bv:#9adfb4;
     --mv:#e8c84a; --acc:#ef8e5a; --err:#ff6b6b;
     font-size:15px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{
-    background:var(--bg); color:var(--txt);
-    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
-    min-height:100vh;
-  }
-  /* ── Kopf wie ein Geräteschild ───────────────────────── */
-  header{
-    border-bottom:2px solid var(--hw);
+  body{background:var(--bg); color:var(--txt);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif; min-height:100vh;}
+  header{border-bottom:2px solid var(--hw);
     background:linear-gradient(180deg,#141b26 0%,#10151d 100%);
-    padding:1.1rem 1.4rem .9rem;
-    display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap;
-  }
-  header .tag{
-    font-family:"Consolas","Courier New",monospace;
-    color:var(--hw); font-size:.72rem; letter-spacing:.18em;
-    border:1px solid var(--hw); padding:.15rem .5rem; border-radius:2px;
-  }
-  header h1{font-size:1.15rem; font-weight:600; letter-spacing:.02em;}
-  header .sub{color:var(--dim); font-size:.8rem;}
-  main{max-width:1180px; margin:0 auto; padding:1.4rem;}
+    padding:1rem 1.2rem .8rem; display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap;}
+  header .tag{font-family:"Consolas","Courier New",monospace; color:var(--hw);
+    font-size:.72rem; letter-spacing:.18em; border:1px solid var(--hw);
+    padding:.15rem .5rem; border-radius:2px;}
+  header h1{font-size:1.1rem; font-weight:600;}
+  header .sub{color:var(--dim); font-size:.78rem;}
+  main{width:100%; padding:1.1rem 1.2rem;}
 
-  /* ── Dropzone ────────────────────────────────────────── */
-  #drop{
-    border:2px dashed var(--line); border-radius:6px;
-    background:var(--panel);
-    padding:2.6rem 1rem; text-align:center; cursor:pointer;
-    transition:border-color .15s, background .15s;
-  }
+  #drop{border:2px dashed var(--line); border-radius:6px; background:var(--panel);
+    padding:2rem 1rem; text-align:center; cursor:pointer; transition:border-color .15s, background .15s;}
   #drop.hover{border-color:var(--hw); background:var(--panel2);}
-  #drop .big{font-size:1.05rem; font-weight:600;}
-  #drop .small{color:var(--dim); font-size:.82rem; margin-top:.4rem;}
-  #drop kbd{
-    font-family:"Consolas",monospace; background:var(--panel2);
-    border:1px solid var(--line); border-radius:3px; padding:0 .35rem; font-size:.8rem;
-  }
+  #drop .big{font-size:1rem; font-weight:600;}
+  #drop .small{color:var(--dim); font-size:.8rem; margin-top:.35rem;}
+  #drop kbd{font-family:"Consolas",monospace; background:var(--panel2);
+    border:1px solid var(--line); border-radius:3px; padding:0 .35rem; font-size:.78rem;}
   input[type=file]{display:none;}
 
-  /* ── Statuszeile (LED-Stil) ──────────────────────────── */
-  #status{
-    display:none; margin-top:1rem; padding:.65rem .9rem;
-    background:var(--panel); border:1px solid var(--line); border-radius:5px;
-    font-family:"Consolas",monospace; font-size:.82rem;
-    align-items:center; gap:.6rem;
-  }
+  #status{display:none; margin-top:.9rem; padding:.6rem .9rem; background:var(--panel);
+    border:1px solid var(--line); border-radius:5px; font-family:"Consolas",monospace;
+    font-size:.8rem; align-items:center; gap:.6rem;}
   #status.show{display:flex;}
   .led{width:10px;height:10px;border-radius:50%;flex:none;}
   .led.ok{background:#54c878; box-shadow:0 0 6px #54c878;}
   .led.err{background:var(--err); box-shadow:0 0 6px var(--err);}
 
-  /* ── Zähler-Kacheln ──────────────────────────────────── */
-  #counts{display:none; grid-template-columns:repeat(auto-fit,minmax(108px,1fr));
-    gap:.55rem; margin-top:1rem;}
+  #counts{display:none; grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
+    gap:.5rem; margin-top:.9rem;}
   #counts.show{display:grid;}
-  .cnt{
-    background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--c,#888);
-    border-radius:4px; padding:.5rem .65rem;
-  }
-  .cnt .n{font-family:"Consolas",monospace; font-size:1.25rem; font-weight:700;}
-  .cnt .l{color:var(--dim); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; margin-top:.1rem;}
+  .cnt{background:var(--panel); border:1px solid var(--line);
+    border-left:4px solid var(--c,#888); border-radius:4px; padding:.45rem .6rem;}
+  .cnt .n{font-family:"Consolas",monospace; font-size:1.2rem; font-weight:700;}
+  .cnt .l{color:var(--dim); font-size:.66rem; letter-spacing:.05em; text-transform:uppercase; margin-top:.1rem;}
 
-  /* ── Werkzeugleiste ──────────────────────────────────── */
-  #toolbar{display:none; margin-top:1.2rem; gap:.6rem; flex-wrap:wrap; align-items:center;}
-  #toolbar.show{display:flex;}
-  select,button{
-    font:inherit; font-size:.85rem; border-radius:4px;
+  #toolbar,#quickfill{display:none; margin-top:1rem; gap:.55rem; flex-wrap:wrap; align-items:center;}
+  #toolbar.show,#quickfill.show{display:flex;}
+  #quickfill{background:var(--panel); border:1px solid var(--line); border-radius:5px;
+    padding:.55rem .8rem; margin-top:.6rem; font-size:.8rem;}
+  #quickfill .lbl{color:var(--dim); font-size:.74rem; letter-spacing:.05em; text-transform:uppercase;}
+  select,button,input.qf{font:inherit; font-size:.83rem; border-radius:4px;
     border:1px solid var(--line); background:var(--panel2); color:var(--txt);
-    padding:.5rem .8rem; cursor:pointer;
-  }
-  select:focus,button:focus{outline:2px solid var(--hw); outline-offset:1px;}
-  button.primary{
-    background:var(--hw); color:#10151d; font-weight:700; border-color:var(--hw);
-  }
+    padding:.45rem .7rem; cursor:pointer;}
+  input.qf{width:6.2rem; cursor:text;}
+  select:focus,button:focus,input:focus{outline:2px solid var(--hw); outline-offset:1px;}
+  button.primary{background:var(--hw); color:#10151d; font-weight:700; border-color:var(--hw);}
   button.primary:hover{filter:brightness(1.08);}
-  button:disabled{opacity:.45; cursor:not-allowed;}
   .spacer{flex:1;}
-  label.chk{display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:var(--dim); cursor:pointer;}
+  label.chk{display:flex; align-items:center; gap:.4rem; font-size:.8rem; color:var(--dim); cursor:pointer;}
   label.chk input{accent-color:var(--hw);}
 
-  /* ── Tabelle ─────────────────────────────────────────── */
-  #tablewrap{display:none; margin-top:1rem; border:1px solid var(--line);
-    border-radius:5px; overflow:auto; max-height:60vh; background:var(--panel);}
+  #tablewrap{display:none; margin-top:.8rem; border:1px solid var(--line);
+    border-radius:5px; overflow:auto; max-height:68vh; background:var(--panel);}
   #tablewrap.show{display:block;}
-  table{border-collapse:collapse; width:100%; font-size:.78rem;}
-  thead th{
-    position:sticky; top:0; background:#0d1219; color:var(--dim);
-    font-weight:600; text-align:left; padding:.5rem .6rem;
-    border-bottom:2px solid var(--line); white-space:nowrap;
-    font-family:"Consolas",monospace; font-size:.72rem; letter-spacing:.04em;
-  }
-  tbody td{padding:.34rem .6rem; border-bottom:1px solid #202a3a; white-space:nowrap;}
-  tbody tr:hover{background:var(--panel2);}
-  .pt{
-    display:inline-block; font-family:"Consolas",monospace; font-size:.7rem;
-    padding:.08rem .4rem; border-radius:3px; color:#10151d; font-weight:700;
-  }
+  table{border-collapse:collapse; table-layout:fixed; min-width:100%; font-size:.78rem;}
+  thead th{position:sticky; top:0; z-index:2; background:#0d1219; color:var(--dim);
+    font-weight:600; text-align:left; padding:.5rem .55rem;
+    border-bottom:2px solid var(--line); white-space:nowrap; overflow:hidden;
+    font-family:"Consolas",monospace; font-size:.72rem; letter-spacing:.04em;}
+  thead th .rs{position:absolute; top:0; right:0; width:7px; height:100%;
+    cursor:col-resize; user-select:none;}
+  thead th .rs:hover, thead th .rs.active{background:var(--hw); opacity:.55;}
+  thead th{position:sticky;}
+  tbody td{padding:.3rem .55rem; border-bottom:1px solid #202a3a;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  tbody tr:nth-child(even) td{background:var(--zebra);}
+  tbody tr:hover td{background:var(--panel2);}
+  .pt{display:inline-block; font-family:"Consolas",monospace; font-size:.68rem;
+    padding:.06rem .38rem; border-radius:3px; color:#10151d; font-weight:700;}
   .mono{font-family:"Consolas",monospace;}
   .dimtxt{color:var(--dim);}
+  td input[type=text], td input[type=number]{
+    width:100%; font:inherit; font-size:.76rem; font-family:"Consolas",monospace;
+    background:#0d1219; color:var(--txt); border:1px solid var(--line);
+    border-radius:3px; padding:.15rem .35rem;}
+  td input[type=number]::-webkit-inner-spin-button{display:none;}
+  td input[type=checkbox]{accent-color:var(--hw); width:15px; height:15px; cursor:pointer;}
+  td.center{text-align:center;}
 
-  footer{margin:2rem auto 1.2rem; max-width:1180px; padding:0 1.4rem;
-    color:var(--dim); font-size:.74rem; line-height:1.5;}
+  footer{margin:1.6rem 0 1rem; padding:0 1.2rem; color:var(--dim); font-size:.74rem; line-height:1.55;}
   footer code{font-family:"Consolas",monospace; color:var(--txt);}
   @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
 </style>
@@ -122,16 +104,15 @@
 <body>
 
 <header>
-  <span class="tag">N4 IMPORT</span>
+  <span class="tag">N4 IMPORT v2</span>
   <h1>PointCheckout → Niagara CSV</h1>
-  <span class="sub">Excel-Datenpunktliste hochladen · fertige Import-CSV herunterladen · läuft komplett im Browser</span>
+  <span class="sub">Excel hochladen · Fallback &amp; Alarme vorbereiten · CSV + Robot-Code herunterladen · läuft komplett im Browser</span>
 </header>
 
 <main>
   <div id="drop" tabindex="0" role="button" aria-label="Excel-Datei wählen">
     <div class="big">PointCheckout-Excel hier ablegen</div>
-    <div class="small">oder klicken zum Auswählen — <kbd>.xlsx</kbd> mit Sheet «PointCheckout»<br>
-    Die Datei verlässt deinen Rechner nicht.</div>
+    <div class="small">oder klicken zum Auswählen — <kbd>.xlsx</kbd> mit Sheet «PointCheckout» · Die Datei verlässt deinen Rechner nicht.</div>
   </div>
   <input type="file" id="file" accept=".xlsx,.xlsm,.xls">
 
@@ -142,43 +123,47 @@
   <div id="toolbar">
     <select id="plantFilter" aria-label="Anlage filtern"><option value="">Alle Anlagen</option></select>
     <select id="typeFilter" aria-label="Punkttyp filtern"><option value="">Alle Typen</option></select>
-    <label class="chk"><input type="checkbox" id="skipUnassigned"> nur Hardware-Punkte (Terminal zugewiesen)</label>
+    <label class="chk"><input type="checkbox" id="skipUnassigned"> nur Hardware-Punkte</label>
     <span class="spacer"></span>
+    <button id="dlRobot">Robot-Code (Niagara Program)</button>
     <button id="dlFiltered">Auswahl als CSV</button>
     <button id="dlAll" class="primary">Niagara-CSV herunterladen</button>
   </div>
 
+  <div id="quickfill">
+    <span class="lbl">Schnell ausfüllen →</span>
+    <input class="qf" id="qfFallback" type="text" placeholder="Fallback">
+    <input class="qf" id="qfLow" type="number" placeholder="Low-Alarm" step="any">
+    <input class="qf" id="qfHigh" type="number" placeholder="High-Alarm" step="any">
+    <select id="qfAlarm"><option value="">Alarm: –</option><option value="1">Alarm: Ein</option><option value="0">Alarm: Aus</option></select>
+    <select id="qfBacnet"><option value="">BACnet: –</option><option value="1">BACnet: Ein</option><option value="0">BACnet: Aus</option></select>
+    <button id="qfApply">Auf gefilterte Zeilen anwenden</button>
+    <span class="dimtxt" id="qfInfo"></span>
+  </div>
+
   <div id="tablewrap">
-    <table>
-      <thead>
-        <tr>
-          <th>name</th><th>displayName</th><th>type</th><th>bacnetObjectType</th>
-          <th>units</th><th>stateText</th><th>terminal</th><th>plant</th>
-        </tr>
-      </thead>
+    <table id="tbl">
+      <colgroup id="cols"></colgroup>
+      <thead><tr id="headrow"></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
   </div>
 </main>
 
 <footer>
-  <strong>Import in Niagara 4.15:</strong> Workbench → <code>File ▸ Import ▸ CSV</code> → Zielordner (Plant-Ebene) wählen → Finish.<br>
-  CSV-Format: UTF-8, Komma-getrennt, Punkt als Dezimalzeichen — unabhängig von der Schweizer Windows-Regionaleinstellung korrekt erzeugt.<br>
-  Typ-Mapping: AI→NumericPoint · AO/AV→NumericWritable · BI→BooleanPoint · BO/BV→BooleanWritable · MSV→EnumWritable · Accumulator→NumericPoint.
+  <strong>Workflow:</strong> 1) Excel laden → 2) Fallback/Alarmgrenzen/Checkboxen setzen (Schnell-Ausfüllen nutzt die aktuelle Filterauswahl) → 3) CSV herunterladen → 4) CSV auf die Station kopieren → 5) Robot-Code einmalig als <code>Program</code> in der Station einrichten → 6) Action <code>Execute</code> → Punkte werden inkl. Facets, Fallback und OutOfRange-/ChangeOfState-Alarm angelegt.<br>
+  Spaltenbreite: am rechten Rand der Spaltenüberschrift ziehen (wird im Browser gespeichert).<br>
+  CSV: UTF-8, Komma-getrennt, Punkt als Dezimalzeichen — unabhängig von der CH-Regionaleinstellung korrekt.
 </footer>
 
 <script>
-/* ── Mapping-Tabellen ─────────────────────────────────────────────────────── */
+/* ── Mapping ──────────────────────────────────────────────────────────────── */
 const TYPE_MAP = {
-  "Analog Input":     "bacnet:NumericPoint",
-  "Analog Output":    "bacnet:NumericWritable",
-  "Analog Value":     "bacnet:NumericWritable",
-  "Binary Input":     "bacnet:BooleanPoint",
-  "Binary Ouput":     "bacnet:BooleanWritable",   // Tippfehler im CPO-Export
-  "Binary Output":    "bacnet:BooleanWritable",
-  "Binary Value":     "bacnet:BooleanWritable",
-  "MultiState Value": "bacnet:EnumWritable",
-  "Accumulator":      "bacnet:NumericPoint"
+  "Analog Input":"bacnet:NumericPoint","Analog Output":"bacnet:NumericWritable",
+  "Analog Value":"bacnet:NumericWritable","Binary Input":"bacnet:BooleanPoint",
+  "Binary Ouput":"bacnet:BooleanWritable","Binary Output":"bacnet:BooleanWritable",
+  "Binary Value":"bacnet:BooleanWritable","MultiState Value":"bacnet:EnumWritable",
+  "Accumulator":"bacnet:NumericPoint"
 };
 const BAC_MAP = {
   "Analog Input":"analogInput","Analog Output":"analogOutput","Analog Value":"analogValue",
@@ -191,12 +176,29 @@ const TYPE_COLOR = {
   "Binary Value":"var(--bv)","MultiState Value":"var(--mv)","Accumulator":"var(--acc)"
 };
 const TYPE_SHORT = {
-  "Analog Input":"AI","Analog Output":"AO","Analog Value":"AV",
-  "Binary Input":"BI","Binary Ouput":"BO","Binary Output":"BO",
-  "Binary Value":"BV","MultiState Value":"MSV","Accumulator":"ACC"
+  "Analog Input":"AI","Analog Output":"AO","Analog Value":"AV","Binary Input":"BI",
+  "Binary Ouput":"BO","Binary Output":"BO","Binary Value":"BV",
+  "MultiState Value":"MSV","Accumulator":"ACC"
 };
 
-let points = [];   // {name, display, type, niagaraType, bacType, units, stateText, terminal, plant}
+/* ── Spalten-Definition (Reihenfolge = Tabelle & Resize) ─────────────────── */
+const COLS = [
+  {key:"name",      lbl:"name",            w:230},
+  {key:"display",   lbl:"displayName",     w:240},
+  {key:"type",      lbl:"type",            w:165},
+  {key:"bacType",   lbl:"bacnetObjType",   w:120},
+  {key:"units",     lbl:"units",           w:60},
+  {key:"stateText", lbl:"stateText",       w:130},
+  {key:"terminal",  lbl:"terminal",        w:85},
+  {key:"plant",     lbl:"plant",           w:190},
+  {key:"fallback",  lbl:"fallback",        w:85},
+  {key:"low",       lbl:"lowAlarm",        w:85},
+  {key:"high",      lbl:"highAlarm",       w:85},
+  {key:"alarm",     lbl:"alarm",           w:55},
+  {key:"bacnet",    lbl:"bacnetExt",       w:70}
+];
+
+let points = [];
 let srcFileName = "";
 
 /* ── Upload ───────────────────────────────────────────────────────────────── */
@@ -222,7 +224,6 @@ function handleFile(file){
   reader.onload = e => {
     try {
       const wb = XLSX.read(new Uint8Array(e.target.result), { type:"array" });
-      // Sheet «PointCheckout» suchen – sonst erstes Sheet mit passendem Header
       let sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("pointcheckout"))
                    || wb.SheetNames.find(n => {
                         const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1 });
@@ -240,16 +241,13 @@ function handleFile(file){
 
 function parseSheet(ws){
   const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
-  // Header-Zeile finden (enthält "Point Name")
   const hIdx = rows.findIndex(r => r.includes("Point Name"));
   if (hIdx < 0) throw new Error("Header-Zeile mit «Point Name» nicht gefunden.");
   const H = rows[hIdx];
   const col = label => H.indexOf(label);
-  const c = {
-    plant: col("Plant Name"), name: col("Point Name"), desc: col("Point Description"),
-    type: col("Point Type"), state: col("State Text"), unit: col("Engineering Unit"),
-    term: col("Terminal Address")
-  };
+  const c = { plant:col("Plant Name"), name:col("Point Name"), desc:col("Point Description"),
+              type:col("Point Type"), state:col("State Text"), unit:col("Engineering Unit"),
+              term:col("Terminal Address") };
   if (c.name < 0 || c.type < 0) throw new Error("Spalten «Point Name» / «Point Type» fehlen.");
 
   points = [];
@@ -272,24 +270,24 @@ function parseSheet(ws){
       units: (unit === "NA" || unit === "no_units") ? "" : unit,
       stateText: state === "NA" ? "" : state,
       terminal: term === "<Unassigned>" ? "" : term,
-      plant: String(r[c.plant] || "").trim()
+      plant: String(r[c.plant] || "").trim(),
+      fallback:"", low:"", high:"", alarm:false, bacnet:false
     });
   }
   if (!points.length) throw new Error("Keine gültigen Datenpunkte gefunden.");
 
   let msg = points.length + " Punkte geladen aus «" + srcFileName + "»";
-  if (unknownTypes.size) msg += "  ·  übersprungen (unbekannter Typ): " + [...unknownTypes].join(", ");
+  if (unknownTypes.size) msg += "  ·  übersprungen: " + [...unknownTypes].join(", ");
   setStatus(true, msg);
   buildUI();
 }
 
-/* ── UI-Aufbau ────────────────────────────────────────────────────────────── */
+/* ── UI ──────────────────────────────────────────────────────────────────── */
 function hideResults(){
-  ["counts","toolbar","tablewrap"].forEach(id => document.getElementById(id).classList.remove("show"));
+  ["counts","toolbar","quickfill","tablewrap"].forEach(id => document.getElementById(id).classList.remove("show"));
 }
 
 function buildUI(){
-  // Zähler
   const byType = {};
   points.forEach(p => byType[p.type] = (byType[p.type] || 0) + 1);
   const cnt = document.getElementById("counts");
@@ -305,81 +303,428 @@ function buildUI(){
   });
   cnt.classList.add("show");
 
-  // Filter füllen
   const plants = [...new Set(points.map(p => p.plant).filter(Boolean))].sort();
   const pf = document.getElementById("plantFilter");
   pf.innerHTML = '<option value="">Alle Anlagen (' + plants.length + ')</option>'
     + plants.map(p => '<option>' + esc(p) + '</option>').join("");
-  const types = order.filter(t => byType[t]);
   const tf = document.getElementById("typeFilter");
   tf.innerHTML = '<option value="">Alle Typen</option>'
-    + types.map(t => '<option>' + t + '</option>').join("");
+    + order.filter(t => byType[t]).map(t => '<option>' + t + '</option>').join("");
 
   document.getElementById("toolbar").classList.add("show");
+  document.getElementById("quickfill").classList.add("show");
+  buildHead();
   renderTable();
 }
 
+/* ── Spaltenkopf + Resize ────────────────────────────────────────────────── */
+let colWidths = COLS.map(c => c.w);
+try {
+  const saved = JSON.parse(localStorage.getItem("n4_colw") || "null");
+  if (Array.isArray(saved) && saved.length === COLS.length) colWidths = saved;
+} catch(e){}
+
+function buildHead(){
+  const cg = document.getElementById("cols");
+  cg.innerHTML = COLS.map((c,i) => '<col style="width:' + colWidths[i] + 'px">').join("");
+  const hr = document.getElementById("headrow");
+  hr.innerHTML = COLS.map((c,i) =>
+    '<th>' + c.lbl + '<span class="rs" data-i="' + i + '"></span></th>').join("");
+
+  hr.querySelectorAll(".rs").forEach(h => {
+    h.addEventListener("mousedown", e => {
+      e.preventDefault();
+      const i = +h.dataset.i;
+      const startX = e.clientX, startW = colWidths[i];
+      h.classList.add("active");
+      const move = ev => {
+        colWidths[i] = Math.max(40, startW + ev.clientX - startX);
+        cg.children[i].style.width = colWidths[i] + "px";
+      };
+      const up = () => {
+        h.classList.remove("active");
+        document.removeEventListener("mousemove", move);
+        document.removeEventListener("mouseup", up);
+        try { localStorage.setItem("n4_colw", JSON.stringify(colWidths)); } catch(e){}
+      };
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup", up);
+    });
+    // Touch-Unterstützung
+    h.addEventListener("touchstart", e => {
+      const i = +h.dataset.i;
+      const startX = e.touches[0].clientX, startW = colWidths[i];
+      const move = ev => {
+        colWidths[i] = Math.max(40, startW + ev.touches[0].clientX - startX);
+        cg.children[i].style.width = colWidths[i] + "px";
+      };
+      const end = () => {
+        document.removeEventListener("touchmove", move);
+        document.removeEventListener("touchend", end);
+        try { localStorage.setItem("n4_colw", JSON.stringify(colWidths)); } catch(e){}
+      };
+      document.addEventListener("touchmove", move);
+      document.addEventListener("touchend", end);
+    }, {passive:true});
+  });
+}
+
+/* ── Filter & Tabelle ────────────────────────────────────────────────────── */
 function currentFilter(){
   const plant = document.getElementById("plantFilter").value;
   const type  = document.getElementById("typeFilter").value;
   const hwOnly = document.getElementById("skipUnassigned").checked;
-  return points.filter(p =>
-    (!plant || p.plant === plant) &&
-    (!type  || p.type === type) &&
-    (!hwOnly || p.terminal)
-  );
+  const out = [];
+  points.forEach((p, gi) => {
+    if ((!plant || p.plant === plant) && (!type || p.type === type) && (!hwOnly || p.terminal))
+      out.push(gi);
+  });
+  return out;
 }
 
+function isNumericType(p){ return p.niagaraType.indexOf("Numeric") >= 0; }
+
 function renderTable(){
-  const rows = currentFilter();
+  const idxs = currentFilter();
   const tb = document.getElementById("tbody");
-  tb.innerHTML = rows.map(p =>
-    "<tr>" +
-    '<td class="mono">' + esc(p.name) + "</td>" +
-    "<td>" + esc(p.display) + "</td>" +
-    '<td><span class="pt" style="background:' + TYPE_COLOR[p.type] + '">' + TYPE_SHORT[p.type] + "</span> " +
+  tb.innerHTML = idxs.map(gi => {
+    const p = points[gi];
+    const num = isNumericType(p);
+    return "<tr>" +
+      '<td class="mono" title="' + esc(p.name) + '">' + esc(p.name) + "</td>" +
+      '<td title="' + esc(p.display) + '">' + esc(p.display) + "</td>" +
+      '<td><span class="pt" style="background:' + TYPE_COLOR[p.type] + '">' + TYPE_SHORT[p.type] + "</span> " +
         '<span class="dimtxt mono">' + esc(p.niagaraType.replace("bacnet:","")) + "</span></td>" +
-    '<td class="mono dimtxt">' + esc(p.bacType) + "</td>" +
-    "<td>" + esc(p.units) + "</td>" +
-    '<td class="dimtxt">' + esc(p.stateText) + "</td>" +
-    '<td class="mono">' + esc(p.terminal) + "</td>" +
-    '<td class="dimtxt">' + esc(p.plant) + "</td>" +
-    "</tr>"
-  ).join("");
+      '<td class="mono dimtxt">' + esc(p.bacType) + "</td>" +
+      "<td>" + esc(p.units) + "</td>" +
+      '<td class="dimtxt" title="' + esc(p.stateText) + '">' + esc(p.stateText) + "</td>" +
+      '<td class="mono">' + esc(p.terminal) + "</td>" +
+      '<td class="dimtxt" title="' + esc(p.plant) + '">' + esc(p.plant) + "</td>" +
+      '<td><input type="text" data-gi="' + gi + '" data-f="fallback" value="' + esc(p.fallback) + '"></td>' +
+      '<td>' + (num ? '<input type="number" step="any" data-gi="' + gi + '" data-f="low" value="' + esc(p.low) + '">' : '<span class="dimtxt">–</span>') + '</td>' +
+      '<td>' + (num ? '<input type="number" step="any" data-gi="' + gi + '" data-f="high" value="' + esc(p.high) + '">' : '<span class="dimtxt">–</span>') + '</td>' +
+      '<td class="center"><input type="checkbox" data-gi="' + gi + '" data-f="alarm"' + (p.alarm ? " checked" : "") + '></td>' +
+      '<td class="center"><input type="checkbox" data-gi="' + gi + '" data-f="bacnet"' + (p.bacnet ? " checked" : "") + '></td>' +
+      "</tr>";
+  }).join("");
   document.getElementById("tablewrap").classList.add("show");
-  document.getElementById("dlFiltered").textContent =
-    "Auswahl als CSV (" + rows.length + ")";
+  document.getElementById("dlFiltered").textContent = "Auswahl als CSV (" + idxs.length + ")";
+  document.getElementById("qfInfo").textContent = idxs.length + " Zeilen im Filter";
 }
+
+document.getElementById("tbody").addEventListener("input", e => {
+  const t = e.target;
+  if (!t.dataset || t.dataset.gi === undefined) return;
+  const p = points[+t.dataset.gi];
+  if (t.type === "checkbox") p[t.dataset.f] = t.checked;
+  else p[t.dataset.f] = t.value;
+});
 
 ["plantFilter","typeFilter","skipUnassigned"].forEach(id =>
   document.getElementById(id).addEventListener("change", renderTable));
 
-/* ── CSV-Export ───────────────────────────────────────────────────────────── */
+/* ── Schnell-Ausfüllen ───────────────────────────────────────────────────── */
+document.getElementById("qfApply").addEventListener("click", () => {
+  const fb = document.getElementById("qfFallback").value;
+  const lo = document.getElementById("qfLow").value;
+  const hi = document.getElementById("qfHigh").value;
+  const al = document.getElementById("qfAlarm").value;
+  const bn = document.getElementById("qfBacnet").value;
+  const idxs = currentFilter();
+  idxs.forEach(gi => {
+    const p = points[gi];
+    if (fb !== "") p.fallback = fb;
+    if (lo !== "" && isNumericType(p)) p.low = lo;
+    if (hi !== "" && isNumericType(p)) p.high = hi;
+    if (al !== "") p.alarm = al === "1";
+    if (bn !== "") p.bacnet = bn === "1";
+  });
+  renderTable();
+});
+
+/* ── CSV-Export ──────────────────────────────────────────────────────────── */
 function csvField(v){
   v = String(v == null ? "" : v);
   return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
 }
-function buildCSV(rows){
-  const head = ["name","displayName","type","bacnetObjectType","units","facets.stateText","bacnetObjectName","terminalAddress","plant"];
+function buildCSV(idxs){
+  const head = ["name","displayName","type","bacnetObjectType","units","facets.stateText",
+                "terminalAddress","plant","fallback","lowLimit","highLimit","alarmEnable","bacnetExport"];
   const lines = [head.join(",")];
-  rows.forEach(p => lines.push([
-    p.name, p.display, p.niagaraType, p.bacType, p.units, p.stateText, p.name, p.terminal, p.plant
-  ].map(csvField).join(",")));
+  idxs.forEach(gi => {
+    const p = points[gi];
+    lines.push([p.name, p.display, p.niagaraType, p.bacType, p.units, p.stateText,
+      p.terminal, p.plant, p.fallback, p.low, p.high,
+      p.alarm ? "true" : "false", p.bacnet ? "true" : "false"
+    ].map(csvField).join(","));
+  });
   return lines.join("\r\n");
 }
-function download(rows, suffix){
-  if (!rows.length) return;
-  const blob = new Blob(["\uFEFF" + buildCSV(rows)], { type:"text/csv;charset=utf-8" });
+function download(idxs, suffix){
+  if (!idxs.length) return;
+  const blob = new Blob(["\uFEFF" + buildCSV(idxs)], { type:"text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = (srcFileName || "punkte") + suffix + "_niagara.csv";
   a.click();
   URL.revokeObjectURL(a.href);
 }
-document.getElementById("dlAll").addEventListener("click", () => download(points, ""));
+document.getElementById("dlAll").addEventListener("click", () => download(points.map((p,i)=>i), ""));
 document.getElementById("dlFiltered").addEventListener("click", () => download(currentFilter(), "_auswahl"));
 
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+/* ── Robot-Code Download ─────────────────────────────────────────────────── */
+const ROBOT_CODE = String.raw`// ════════════════════════════════════════════════════════════════════
+// N4 PUNKTIMPORT ROBOT  –  fuer Niagara 4.15 (station-seitig, kein Signing)
+// ════════════════════════════════════════════════════════════════════
+// EINRICHTUNG (einmalig):
+// 1. Workbench: Station -> Config -> Rechtsklick -> New -> Program
+//    (Palette "program", Komponente "Program"), Name: PunktImport
+// 2. Doppelklick -> Slots-Tab -> 3 Slots anlegen (alle baja:String):
+//      csvPfad      z.B. /opt/niagara/stations/DEINESTATION/shared/punkte.csv
+//                   (lokale Windows-Station: C:/Users/.../punkte.csv)
+//      zielOrdner   z.B. station:|slot:/Punkte   (Ordner muss existieren!)
+//      statusText   bleibt leer - zeigt nach Execute das Ergebnis
+// 3. Edit-Tab -> diesen Code (ab "public void onExecute") in den
+//    Code-Bereich einfuegen -> Compile & Save
+//    Falls Compile-Fehler "cannot find class": im Edit-Tab links unter
+//    Module-Liste die Module baja, control, alarm, units hinzufuegen.
+// 4. CSV auf die Station kopieren (FileTransferClient -> shared-Ordner)
+// 5. Rechtsklick auf Program -> Actions -> Execute
+//    -> statusText zeigt: Neu / Vorhanden / Fehler
+//
+// WAS DER ROBOT MACHT:
+// - Legt pro CSV-Zeile den Punkt im zielOrdner an (Typ aus Spalte "type")
+// - Setzt Facets: Einheit (Numeric), trueText/falseText (Boolean),
+//   EnumRange aus stateText (MultiState)
+// - Setzt Fallback-Wert (Writables)
+// - alarmEnable=true: haengt AlarmSourceExt an
+//     Numeric -> OutOfRange mit lowLimit/highLimit aus CSV
+//     Boolean -> ChangeOfState (alarmiert auf true = STOERUNG)
+// - Punkte die schon existieren werden uebersprungen (kein Ueberschreiben)
+// - bacnetExport=true wird gezaehlt; die Punkte selbst danach in
+//   Workbench markieren und auf die BACnet Export Table ziehen
+//   (Drag&Drop auf Drivers/BacnetNetwork/Local Device/Export Table)
+// ════════════════════════════════════════════════════════════════════
+
+public void onExecute() throws Exception
+{
+  String pfad = getString("csvPfad");
+  String zielS = getString("zielOrdner");
+  javax.baja.sys.BComponent ziel = (javax.baja.sys.BComponent)
+    javax.baja.naming.BOrd.make(zielS).get(javax.baja.sys.Sys.getStation());
+
+  java.io.BufferedReader br = new java.io.BufferedReader(
+    new java.io.InputStreamReader(new java.io.FileInputStream(pfad), "UTF-8"));
+
+  String kopf = br.readLine();
+  if (kopf == null) { setString("statusText", "CSV ist leer"); br.close(); return; }
+  if (kopf.length() > 0 && kopf.charAt(0) == '\uFEFF') kopf = kopf.substring(1);
+
+  java.util.ArrayList namen = new java.util.ArrayList();
+  String[] hf = parseZeile(kopf);
+  for (int i = 0; i < hf.length; i++) namen.add(hf[i].trim());
+
+  int neu = 0, vorhanden = 0, fehler = 0, bacnetAnz = 0;
+  StringBuffer fl = new StringBuffer();
+  String zeile;
+
+  while ((zeile = br.readLine()) != null)
+  {
+    if (zeile.trim().length() == 0) continue;
+    try
+    {
+      String[] f   = parseZeile(zeile);
+      String name  = feld(f, namen, "name");
+      String anz   = feld(f, namen, "displayName");
+      String typ   = feld(f, namen, "type");
+      String unit  = feld(f, namen, "units");
+      String states= feld(f, namen, "facets.stateText");
+      String fb    = feld(f, namen, "fallback");
+      String lowS  = feld(f, namen, "lowLimit");
+      String highS = feld(f, namen, "highLimit");
+      boolean alarm  = "true".equalsIgnoreCase(feld(f, namen, "alarmEnable"));
+      boolean bacnet = "true".equalsIgnoreCase(feld(f, namen, "bacnetExport"));
+      if (name.length() == 0) continue;
+
+      String slot = javax.baja.sys.SlotPath.escape(name);
+      if (ziel.get(slot) != null) { vorhanden++; continue; }
+
+      javax.baja.control.BControlPoint p = erzeugePunkt(typ);
+      if (p == null) { fehler++; fl.append(name).append("(Typ?) "); continue; }
+
+      setzeFacets(p, typ, unit, states);
+      setzeFallback(p, fb);
+      if (alarm) haengeAlarmAn(p, typ, lowS, highS);
+      if (bacnet) bacnetAnz++;
+
+      javax.baja.sys.Property prop = ziel.add(slot, p);
+      if (anz.length() > 0)
+        ziel.setDisplayName(prop, javax.baja.naming.BFormat.make(anz), null);
+      neu++;
+    }
+    catch (Exception e) { fehler++; fl.append(e.toString()).append(" "); }
+  }
+  br.close();
+  setString("statusText", "Neu: " + neu + " | Vorhanden: " + vorhanden
+    + " | Fehler: " + fehler + " | BACnet markiert: " + bacnetAnz
+    + (fehler > 0 ? " | " + fl.toString() : ""));
+}
+
+// ── CSV-Zeile zerlegen (beruecksichtigt Anfuehrungszeichen) ──
+private String[] parseZeile(String z)
+{
+  java.util.ArrayList teile = new java.util.ArrayList();
+  StringBuffer sb = new StringBuffer();
+  boolean inQ = false;
+  for (int i = 0; i < z.length(); i++)
+  {
+    char c = z.charAt(i);
+    if (inQ)
+    {
+      if (c == '"')
+      {
+        if (i + 1 < z.length() && z.charAt(i + 1) == '"') { sb.append('"'); i++; }
+        else inQ = false;
+      }
+      else sb.append(c);
+    }
+    else
+    {
+      if (c == '"') inQ = true;
+      else if (c == ',') { teile.add(sb.toString()); sb.setLength(0); }
+      else sb.append(c);
+    }
+  }
+  teile.add(sb.toString());
+  return (String[]) teile.toArray(new String[0]);
+}
+
+private String feld(String[] f, java.util.ArrayList namen, String name)
+{
+  int i = namen.indexOf(name);
+  if (i < 0 || i >= f.length) return "";
+  return f[i].trim();
+}
+
+private javax.baja.control.BControlPoint erzeugePunkt(String typ)
+{
+  if (typ.endsWith("NumericWritable")) return new javax.baja.control.BNumericWritable();
+  if (typ.endsWith("NumericPoint"))    return new javax.baja.control.BNumericPoint();
+  if (typ.endsWith("BooleanWritable")) return new javax.baja.control.BBooleanWritable();
+  if (typ.endsWith("BooleanPoint"))    return new javax.baja.control.BBooleanPoint();
+  if (typ.endsWith("EnumWritable"))    return new javax.baja.control.BEnumWritable();
+  return null;
+}
+
+private void setzeFacets(javax.baja.control.BControlPoint p, String typ, String unit, String states)
+{
+  try
+  {
+    if (typ.indexOf("Enum") >= 0 && states.length() > 0)
+    {
+      java.util.StringTokenizer st = new java.util.StringTokenizer(states, ";");
+      java.util.ArrayList tags = new java.util.ArrayList();
+      while (st.hasMoreTokens())
+        tags.add(javax.baja.sys.SlotPath.escape(st.nextToken().trim()));
+      javax.baja.sys.BEnumRange range = javax.baja.sys.BEnumRange.make(
+        (String[]) tags.toArray(new String[0]));
+      p.setFacets(javax.baja.sys.BFacets.makeEnum(range));
+    }
+    else if (typ.indexOf("Boolean") >= 0 && states.indexOf(';') > 0)
+    {
+      String aus = states.substring(0, states.indexOf(';')).trim();
+      String ein = states.substring(states.indexOf(';') + 1).trim();
+      p.setFacets(javax.baja.sys.BFacets.makeBoolean(ein, aus));
+    }
+    else if (unit.length() > 0)
+    {
+      javax.baja.units.BUnit u = sucheEinheit(unit);
+      if (u != null)
+        p.setFacets(javax.baja.sys.BFacets.make(javax.baja.sys.BFacets.UNITS, u));
+    }
+  }
+  catch (Exception e) {}
+}
+
+private javax.baja.units.BUnit sucheEinheit(String s)
+{
+  try
+  {
+    String n = s;
+    if (s.equals("\u00B0C") || s.equals("\u00BAC")) n = "celsius";
+    else if (s.equals("\u00BAK") || s.equals("K")) n = "kelvin";
+    else if (s.equals("%")) n = "percent";
+    else if (s.equalsIgnoreCase("RH")) n = "percent relative humidity";
+    else if (s.equals("kJ/kg")) n = "kilojoules per kilogram";
+    else if (s.equals("h")) n = "hour";
+    else if (s.equals("m\u00B3") || s.equals("m3")) n = "cubic meter";
+    else if (s.equalsIgnoreCase("ppm")) n = "parts per million";
+    else if (s.equals("Pa")) n = "pascal";
+    else if (s.equals("kW")) n = "kilowatt";
+    else if (s.equals("kWh")) n = "kilowatt hour";
+    else if (s.equals("l/s")) n = "liters per second";
+    else if (s.equals("m\u00B3/h")) n = "cubic meters per hour";
+    return javax.baja.units.BUnit.getUnit(n);
+  }
+  catch (Exception e) { return null; }
+}
+
+private void setzeFallback(javax.baja.control.BControlPoint p, String wert)
+{
+  if (wert.length() == 0) return;
+  try
+  {
+    if (p instanceof javax.baja.control.BNumericWritable)
+      ((javax.baja.control.BNumericWritable) p).setFallback(
+        new javax.baja.status.BStatusNumeric(Double.parseDouble(wert)));
+    else if (p instanceof javax.baja.control.BBooleanWritable)
+      ((javax.baja.control.BBooleanWritable) p).setFallback(
+        new javax.baja.status.BStatusBoolean(
+          "true".equalsIgnoreCase(wert) || "1".equals(wert) || "ein".equalsIgnoreCase(wert)));
+    else if (p instanceof javax.baja.control.BEnumWritable)
+      ((javax.baja.control.BEnumWritable) p).setFallback(
+        new javax.baja.status.BStatusEnum(
+          javax.baja.sys.BDynamicEnum.make(Integer.parseInt(wert))));
+  }
+  catch (Exception e) {}
+}
+
+private void haengeAlarmAn(javax.baja.control.BControlPoint p, String typ, String lowS, String highS)
+{
+  try
+  {
+    javax.baja.alarm.ext.BAlarmSourceExt ext = new javax.baja.alarm.ext.BAlarmSourceExt();
+    if (typ.indexOf("Numeric") >= 0)
+    {
+      javax.baja.alarm.ext.offnormal.BOutOfRangeAlgorithm alg =
+        new javax.baja.alarm.ext.offnormal.BOutOfRangeAlgorithm();
+      if (lowS.length() > 0)  alg.setLowLimit(Double.parseDouble(lowS));
+      if (highS.length() > 0) alg.setHighLimit(Double.parseDouble(highS));
+      ext.setOffnormalAlgorithm(alg);
+    }
+    else if (typ.indexOf("Boolean") >= 0)
+    {
+      // ChangeOfState: alarmiert standardmaessig auf true (= STOERUNG)
+      ext.setOffnormalAlgorithm(
+        new javax.baja.alarm.ext.offnormal.BBooleanChangeOfStateAlgorithm());
+    }
+    else return;
+    p.add("AlarmExt", ext);
+  }
+  catch (Exception e) {}
+}
+`;
+
+document.getElementById("dlRobot").addEventListener("click", () => {
+  const blob = new Blob([ROBOT_CODE], { type:"text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "n4_punktimport_robot.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 </script>
 </body>
 </html>
