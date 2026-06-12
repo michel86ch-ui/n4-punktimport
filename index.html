@@ -500,6 +500,9 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 // - alarmEnable=true: haengt AlarmSourceExt an
 //     Numeric -> OutOfRange mit lowLimit/highLimit aus CSV
 //     Boolean -> ChangeOfState (alarmiert auf true = STOERUNG)
+// - NumericWritable: in1, in8 und in16 werden auf Operator gesetzt
+//   (hidden/readonly entfernt) -> beschreibbar via EBI und BACnet
+//   Prioritaeten 1 / 8 / 16
 // - Punkte die schon existieren werden uebersprungen (kein Ueberschreiben)
 // - bacnetExport=true wird gezaehlt; die Punkte selbst danach in
 //   Workbench markieren und auf die BACnet Export Table ziehen
@@ -554,6 +557,7 @@ public void onExecute() throws Exception
 
       setzeFacets(p, typ, unit, states);
       setzeFallback(p, fb);
+      if (p instanceof javax.baja.control.BNumericWritable) flaggePrioritaeten(p);
       if (alarm) haengeAlarmAn(p, typ, lowS, highS);
       if (bacnet) bacnetAnz++;
 
@@ -685,6 +689,28 @@ private void setzeFallback(javax.baja.control.BControlPoint p, String wert)
       ((javax.baja.control.BEnumWritable) p).setFallback(
         new javax.baja.status.BStatusEnum(
           javax.baja.sys.BDynamicEnum.make(Integer.parseInt(wert))));
+  }
+  catch (Exception e) {}
+}
+
+// ── in1 / in8 / in16 freischalten: Operator-Flag setzen,
+//    hidden + readonly entfernen -> EBI & BACnet koennen auf
+//    Prioritaet 1, 8 und 16 schreiben ──
+private void flaggePrioritaeten(javax.baja.control.BControlPoint p)
+{
+  try
+  {
+    String[] slots = { "in1", "in8", "in16" };
+    for (int i = 0; i < slots.length; i++)
+    {
+      javax.baja.sys.Slot s = p.getSlot(slots[i]);
+      if (s == null) continue;
+      int fl = p.getFlags(s);
+      fl = (fl | javax.baja.sys.Flags.OPERATOR)
+           & ~javax.baja.sys.Flags.HIDDEN
+           & ~javax.baja.sys.Flags.READONLY;
+      p.setFlags(s, fl, null);
+    }
   }
   catch (Exception e) {}
 }
