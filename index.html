@@ -677,6 +677,13 @@ private void importiere() throws Exception
   javax.baja.sys.BComponent ziel = (javax.baja.sys.BComponent)
     javax.baja.naming.BOrd.make(zielS).get(javax.baja.sys.Sys.getStation());
 
+  // Optional: Panelbus-Modus, wenn Slot pbNetz existiert und gefuellt ist
+  javax.baja.sys.BComponent pbn = null;
+  javax.baja.sys.BValue pbV = get("pbNetz");
+  if (pbV != null && pbV.toString().trim().length() > 0)
+    pbn = (javax.baja.sys.BComponent) javax.baja.naming.BOrd.make(
+      pbV.toString().trim()).get(javax.baja.sys.Sys.getStation());
+
   String fp = pfad.startsWith("file:") ? pfad.substring(5) : pfad;
   javax.baja.file.BIFile datei = javax.baja.file.BFileSystem.INSTANCE.findFile(
     new javax.baja.file.FilePath(fp));
@@ -699,6 +706,7 @@ private void importiere() throws Exception
   for (int i = 0; i < hf.length; i++) namen.add(hf[i].trim());
 
   int neu = 0, vorhanden = 0, fehler = 0, bacnetAnz = 0;
+  int pbNeu = 0, pbVorh = 0, pbFehler = 0;
   StringBuffer fl = new StringBuffer();
   String zeile;
 
@@ -717,9 +725,21 @@ private void importiere() throws Exception
       String fb    = feld(f, namen, "fallback");
       String lowS  = feld(f, namen, "lowLimit");
       String highS = feld(f, namen, "highLimit");
+      String term  = feld(f, namen, "terminalAddress");
       boolean alarm  = "true".equalsIgnoreCase(feld(f, namen, "alarmEnable"));
       boolean bacnet = "true".equalsIgnoreCase(feld(f, namen, "bacnetExport"));
       if (name.length() == 0) continue;
+
+      // ── Hardware-Punkt? -> im Panelbus anlegen statt im zielOrdner ──
+      if (pbn != null && term.length() > 0 && term.indexOf('.') > 0
+          && !term.startsWith("<"))
+      {
+        String erg = pbAnlegen(pbn, term, name, anz);
+        if ("NEU".equals(erg)) pbNeu++;
+        else if ("VORH".equals(erg)) pbVorh++;
+        else { pbFehler++; fl.append(name).append("(").append(erg).append(") "); }
+        continue;
+      }
 
       String slot = javax.baja.naming.SlotPath.escape(name);
       javax.baja.sys.BComponent ordner = holeUnterordner(ziel, kuerzelVon(bacTyp, typ));
@@ -745,7 +765,109 @@ private void importiere() throws Exception
   br.close();
   setString("statusText", "Neu: " + neu + " | Vorhanden: " + vorhanden
     + " | Fehler: " + fehler + " | BACnet markiert: " + bacnetAnz
-    + (fehler > 0 ? " | " + fl.toString() : ""));
+    + (pbn != null ? " | PB neu: " + pbNeu + " | PB vorhanden: " + pbVorh
+       + " | PB Fehler: " + pbFehler : "")
+    + (fehler + pbFehler > 0 ? " | " + fl.toString() : ""));
+}
+
+// ── Panelbus-Punkt anlegen: klont den ersten vorhandenen Punkt
+//    (Vorlage) im passenden Device und setzt Kanal-Adresse + Name.
+//    term = z.B. "4.3.BI2" -> Port 4, Modul 3, Kanal BI2
+//    Rueckgabe: "NEU", "VORH" oder Fehlertext ──
+private String pbAnlegen(javax.baja.sys.BComponent netz, String term,
+                         String name, String anz)
+{
+  try
+  {
+    String[] t = term.trim().split("\\.");
+    if (t.length < 3) return "Terminal?";
+    int modul = Integer.parseInt(t[1].trim());
+    String kTok = t[2].trim();
+    int i = 0;
+    while (i < kTok.length() && !Character.isDigit(kTok.charAt(i))) i++;
+    if (i == kTok.length()) return "Kanal?";
+    String kTyp = kTok.substring(0, i).toLowerCase();
+    int kanal = Integer.parseInt(kTok.substring(i));
+
+    // Device mit passender Modul-Adresse suchen
+    javax.baja.sys.BComponent dev = null;
+    javax.baja.sys.SlotCursor sc = netz.getProperties();
+    while (sc.next())
+    {
+      javax.baja.sys.BValue v = netz.get((javax.baja.sys.Property) sc.slot());
+      if (!(v instanceof javax.baja.sys.BComponent)) continue;
+      javax.baja.sys.BComponent c = (javax.baja.sys.BComponent) v;
+      javax.baja.sys.BValue av = c.get("address");
+      if (!(av instanceof javax.baja.sys.BEnum)) continue;
+      javax.baja.sys.BEnum ae = (javax.baja.sys.BEnum) av;
+      String pad = (modul < 10 ? "0" : "") + modul;
+      if (ae.getOrdinal() == modul || ae.getTag().endsWith("_" + pad)
+          || ae.getTag().endsWith("_" + modul))
+      { dev = c; break; }
+    }
+    if (dev == null) return "Modul " + modul + "?";
+
+    javax.baja.sys.BValue pv = dev.get("points");
+    if (!(pv instanceof javax.baja.sys.BComponent)) return "points?";
+    javax.baja.sys.BComponent pts = (javax.baja.sys.BComponent) pv;
+
+    String slot = javax.baja.naming.SlotPath.escape(name);
+    if (pts.get(slot) != null) return "VORH";
+
+    // Vorlage = erster vorhandener Punkt im Device
+    javax.baja.sys.BComponent vorlage = null;
+    javax.baja.sys.SlotCursor pc = pts.getProperties();
+    while (pc.next())
+    {
+      javax.baja.sys.BValue v = pts.get((javax.baja.sys.Property) pc.slot());
+      if (v instanceof javax.baja.sys.BComponent
+          && ((javax.baja.sys.BComponent) v).get("proxyExt") != null)
+      { vorlage = (javax.baja.sys.BComponent) v; break; }
+    }
+    if (vorlage == null) return "keine Vorlage in Modul " + modul;
+
+    javax.baja.sys.BComponent kopie =
+      (javax.baja.sys.BComponent) vorlage.newCopy();
+
+    // Kanal-Adresse im pointInfo setzen (Enum ueber Range aufloesen)
+    javax.baja.sys.BComponent px =
+      (javax.baja.sys.BComponent) kopie.get("proxyExt");
+    javax.baja.sys.BComponent pi =
+      (javax.baja.sys.BComponent) px.get("pointInfo");
+    javax.baja.sys.BEnum cur = (javax.baja.sys.BEnum) pi.get("address");
+    javax.baja.sys.BEnumRange r =
+      (javax.baja.sys.BEnumRange) cur.getRange();
+
+    javax.baja.sys.BEnum na = null;
+    try { na = r.get(kanal); } catch (Exception e1) {}
+    if (na == null)
+    {
+      String pad = (kanal < 10 ? "0" : "") + kanal;
+      String[] tags = { "address_" + kTyp + "_" + pad,
+                        "address_" + kTyp + "_" + kanal,
+                        "address_" + pad, "address_" + kanal };
+      for (int k = 0; k < tags.length && na == null; k++)
+      {
+        try { na = r.get(tags[k]); } catch (Exception e2) {}
+      }
+    }
+    if (na == null) return "Kanal " + kTok + "?";
+    pi.set("address", na);
+
+    javax.baja.sys.Property pr = pts.add(slot, kopie);
+    pts.setDisplayName(pr, javax.baja.util.BFormat.make(name), null);
+    if (anz.length() > 0)
+    {
+      try { px.set("description", javax.baja.sys.BString.make(anz)); }
+      catch (Exception e3)
+      { kopie.add("beschreibung", javax.baja.sys.BString.make(anz)); }
+    }
+    return "NEU";
+  }
+  catch (Exception e)
+  {
+    return "PB:" + e.getMessage();
+  }
 }
 
 // ── CSV-Zeile zerlegen (beruecksichtigt Anfuehrungszeichen) ──
