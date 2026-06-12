@@ -743,7 +743,7 @@ private void importiere() throws Exception
 
   // Optional: Panelbus-Modus, wenn Slot pbNetz existiert und gefuellt ist
   javax.baja.sys.BComponent pbn = null;
-  javax.baja.sys.BValue pbV = get("pbNetz");
+  javax.baja.sys.BObject pbV = get("pbNetz");
   if (pbV != null && pbV.toString().trim().length() > 0)
     pbn = (javax.baja.sys.BComponent) javax.baja.naming.BOrd.make(
       pbV.toString().trim()).get(javax.baja.sys.Sys.getStation());
