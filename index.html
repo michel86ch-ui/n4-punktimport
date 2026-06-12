@@ -98,6 +98,14 @@
   td select.cell{width:100%; font-size:.74rem; font-family:"Consolas",monospace;
     background:#0d1219; color:var(--txt); border:1px solid var(--line);
     border-radius:3px; padding:.12rem .2rem; cursor:pointer;}
+  td select.typesel{width:100%; font-size:.74rem; font-family:"Consolas",monospace;
+    background:#0d1219; color:var(--txt); border:1px solid var(--line);
+    border-radius:3px; padding:.12rem .2rem; cursor:pointer;}
+  .delbtn{background:none; border:none; color:#e05555; font-size:.85rem;
+    cursor:pointer; padding:0 .3rem 0 0; vertical-align:middle;}
+  .delbtn:hover{color:#ff7b7b;}
+  tr.manualrow td:first-child input{width:calc(100% - 1.2rem); display:inline-block;}
+  tr.manualrow{background:rgba(255,176,0,.04);}
   .sigbtn{width:100%; font-size:.72rem; font-family:"Consolas",monospace; text-align:left;
     background:#0d1219; color:var(--txt); border:1px solid var(--line);
     border-radius:3px; padding:.15rem .35rem; cursor:pointer;
@@ -139,6 +147,7 @@
   <div id="standalone">
     <span class="dimtxt">Ohne Punktliste:</span>
     <button id="dlRobot0">Robot-Code (Niagara Program) herunterladen</button>
+    <button id="addPoint0">+ Punkt manuell hinzufügen (ohne Excel)</button>
     <a class="navlink" href="anleitung.html">Schritt-für-Schritt-Anleitung öffnen</a>
   </div>
 
@@ -150,6 +159,7 @@
     <select id="plantFilter" aria-label="Anlage filtern"><option value="">Alle Anlagen</option></select>
     <select id="typeFilter" aria-label="Punkttyp filtern"><option value="">Alle Typen</option></select>
     <label class="chk"><input type="checkbox" id="skipUnassigned"> nur Hardware-Punkte</label>
+    <button id="addPoint">+ Punkt hinzufügen</button>
     <span class="spacer"></span>
     <button id="dlRobot">Robot-Code (Niagara Program)</button>
     <button id="dlFiltered">Auswahl als CSV</button>
@@ -324,6 +334,7 @@ function hideResults(){
 }
 
 function buildUI(){
+  if (!points.length){ hideResults(); setStatus(true, "Liste ist leer"); return; }
   const byType = {};
   points.forEach(p => byType[p.type] = (byType[p.type] || 0) + 1);
   const cnt = document.getElementById("counts");
@@ -440,24 +451,40 @@ function unitSelect(gi, p){
       (u === "" ? "–" : esc(u)) + '</option>').join("") + '</select>';
 }
 
+function typeSelect(gi, p){
+  return '<select data-gi="' + gi + '" data-f="type" class="typesel">' +
+    Object.keys(TYPE_MAP).filter(t => t !== "Binary Ouput").map(t =>
+      '<option' + (t === p.type ? " selected" : "") + '>' + esc(t) + '</option>').join("") +
+    '</select>';
+}
+
 function renderTable(){
   const idxs = currentFilter();
   const tb = document.getElementById("tbody");
   tb.innerHTML = idxs.map(gi => {
     const p = points[gi];
     const num = isNumericType(p);
-    return "<tr>" +
-      '<td class="mono" title="' + esc(p.name) + '">' + esc(p.name) + "</td>" +
-      '<td title="' + esc(p.display) + '">' + esc(p.display) + "</td>" +
-      '<td><span class="pt" style="background:' + TYPE_COLOR[p.type] + '">' + TYPE_SHORT[p.type] + "</span> " +
-        '<span class="dimtxt mono">' + esc(p.niagaraType.replace("bacnet:","")) + "</span></td>" +
+    const m = p.manual;
+    return "<tr" + (m ? ' class="manualrow"' : "") + ">" +
+      (m
+        ? '<td class="mono"><button class="delbtn" title="Punkt entfernen" data-del="' + gi + '">✕</button><input type="text" data-gi="' + gi + '" data-f="name" value="' + esc(p.name) + '" placeholder="DP-Name"></td>' +
+          '<td><input type="text" data-gi="' + gi + '" data-f="display" value="' + esc(p.display) + '" placeholder="Beschreibung"></td>' +
+          '<td>' + typeSelect(gi, p) + '</td>'
+        : '<td class="mono" title="' + esc(p.name) + '">' + esc(p.name) + "</td>" +
+          '<td title="' + esc(p.display) + '">' + esc(p.display) + "</td>" +
+          '<td><span class="pt" style="background:' + TYPE_COLOR[p.type] + '">' + TYPE_SHORT[p.type] + "</span> " +
+            '<span class="dimtxt mono">' + esc(p.niagaraType.replace("bacnet:","")) + "</span></td>") +
       '<td class="mono dimtxt">' + esc(p.bacType) + "</td>" +
       '<td>' + (num ? unitSelect(gi, p) : '<span class="dimtxt">–</span>') + '</td>' +
       '<td>' + (isAI(p) ? '<button class="sigbtn" data-gi="' + gi + '">' + esc(p.signal.join(", ")) + '</button>' : '<span class="dimtxt">–</span>') + '</td>' +
-      '<td class="dimtxt" title="' + esc(p.stateText) + '">' + esc(p.stateText) + "</td>" +
+      (m
+        ? '<td><input type="text" data-gi="' + gi + '" data-f="stateText" value="' + esc(p.stateText) + '" placeholder="AUS;EIN"></td>'
+        : '<td class="dimtxt" title="' + esc(p.stateText) + '">' + esc(p.stateText) + "</td>") +
       '<td class="center">' + (isBIBO(p) ? '<input type="checkbox" title="markiert = NC (Öffner), leer = NO (Schliesser)" data-gi="' + gi + '" data-f="nc"' + (p.nc ? " checked" : "") + '>' : '<span class="dimtxt">–</span>') + '</td>' +
-      '<td class="mono">' + esc(p.terminal) + "</td>" +
-      '<td class="dimtxt" title="' + esc(p.plant) + '">' + esc(p.plant) + "</td>" +
+      '<td><input type="text" class="mono" data-gi="' + gi + '" data-f="terminal" value="' + esc(p.terminal) + '" placeholder="4.3.BI2"></td>' +
+      (m
+        ? '<td><input type="text" data-gi="' + gi + '" data-f="plant" value="' + esc(p.plant) + '" placeholder="Anlage"></td>'
+        : '<td class="dimtxt" title="' + esc(p.plant) + '">' + esc(p.plant) + "</td>") +
       '<td><input type="text" data-gi="' + gi + '" data-f="fallback" value="' + esc(p.fallback) + '"></td>' +
       '<td>' + (num ? '<input type="number" step="any" data-gi="' + gi + '" data-f="low" value="' + esc(p.low) + '">' : '<span class="dimtxt">–</span>') + '</td>' +
       '<td>' + (num ? '<input type="number" step="any" data-gi="' + gi + '" data-f="high" value="' + esc(p.high) + '">' : '<span class="dimtxt">–</span>') + '</td>' +
@@ -474,6 +501,15 @@ document.getElementById("tbody").addEventListener("input", e => {
   const t = e.target;
   if (!t.dataset || t.dataset.gi === undefined) return;
   const p = points[+t.dataset.gi];
+  if (t.dataset.f === "type"){
+    p.type = t.value;
+    p.niagaraType = TYPE_MAP[p.type];
+    p.bacType = BAC_MAP[p.type];
+    if (!isAI(p)) p.signal = [];
+    if (!isBIBO(p)) p.nc = false;
+    renderTable();
+    return;
+  }
   if (t.type === "checkbox") p[t.dataset.f] = t.checked;
   else p[t.dataset.f] = t.value;
 });
@@ -482,7 +518,35 @@ document.getElementById("tbody").addEventListener("input", e => {
 const sigdrop = document.getElementById("sigdrop");
 let sigGi = null;
 
+/* ── Punkt manuell hinzufügen / entfernen ────────────────────────────────── */
+let manualNr = 1;
+function addManualPoint(){
+  const t = "Analog Input";
+  points.push({
+    name: "NEUER_PUNKT_" + (manualNr++),
+    display: "", type: t,
+    niagaraType: TYPE_MAP[t], bacType: BAC_MAP[t],
+    units: "", stateText: "", terminal: "", plant: "",
+    fallback:"", low:"", high:"", alarm:false, bacnet:false,
+    signal:[], nc:false, manual:true
+  });
+  if (!srcFileName) srcFileName = "manuell";
+  setStatus(true, points.length + " Punkte in der Liste");
+  buildUI();
+  const w = document.getElementById("tablewrap");
+  w.scrollTop = w.scrollHeight;
+}
+document.getElementById("addPoint").addEventListener("click", addManualPoint);
+document.getElementById("addPoint0").addEventListener("click", addManualPoint);
+
 document.getElementById("tbody").addEventListener("click", e => {
+  const del = e.target.closest(".delbtn");
+  if (del){
+    points.splice(+del.dataset.del, 1);
+    setStatus(true, points.length + " Punkte in der Liste");
+    buildUI();
+    return;
+  }
   const btn = e.target.closest(".sigbtn");
   if (!btn) return;
   e.stopPropagation();
