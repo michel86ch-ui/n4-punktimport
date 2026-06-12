@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anleitung – N4 Punktimport</title>
+<style>
+  :root{
+    --bg:#10151d; --panel:#171e29; --panel2:#1d2634; --line:#2b3648;
+    --txt:#dbe4f0; --dim:#7d8ba1; --hw:#ffb000; --ok:#54c878; --err:#ff6b6b;
+    font-size:16px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--txt);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif; line-height:1.6;}
+  header{border-bottom:2px solid var(--hw);
+    background:linear-gradient(180deg,#141b26 0%,#10151d 100%);
+    padding:1rem 1.2rem .8rem; display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap;}
+  header .tag{font-family:"Consolas",monospace; color:var(--hw); font-size:.72rem;
+    letter-spacing:.18em; border:1px solid var(--hw); padding:.15rem .5rem; border-radius:2px;}
+  header h1{font-size:1.1rem; font-weight:600;}
+  .navlink{color:var(--hw); text-decoration:none; font-weight:600; font-size:.9rem;}
+  .navlink:hover{text-decoration:underline;}
+  .spacer{flex:1;}
+  main{max-width:880px; margin:0 auto; padding:1.5rem 1.2rem 3rem;}
+
+  h2{font-size:1.05rem; color:var(--hw); margin:2.2rem 0 .7rem;
+    padding-bottom:.3rem; border-bottom:1px solid var(--line);
+    font-family:"Consolas",monospace; letter-spacing:.04em;}
+  h2:first-of-type{margin-top:.5rem;}
+  h3{font-size:.95rem; margin:1.3rem 0 .4rem;}
+  p{margin:.5rem 0; font-size:.92rem;}
+  ol,ul{margin:.5rem 0 .8rem 1.4rem; font-size:.92rem;}
+  li{margin:.3rem 0;}
+  code{font-family:"Consolas",monospace; font-size:.85em;
+    background:var(--panel2); border:1px solid var(--line);
+    border-radius:3px; padding:.05rem .35rem;}
+  pre{background:#0d1219; border:1px solid var(--line); border-radius:5px;
+    padding:.8rem 1rem; overflow-x:auto; margin:.6rem 0; font-size:.8rem;
+    font-family:"Consolas",monospace; line-height:1.45;}
+  table{border-collapse:collapse; width:100%; margin:.7rem 0; font-size:.85rem;}
+  th{background:#0d1219; color:var(--dim); text-align:left; padding:.45rem .6rem;
+    font-family:"Consolas",monospace; font-size:.75rem; letter-spacing:.04em;
+    border-bottom:2px solid var(--line);}
+  td{padding:.4rem .6rem; border-bottom:1px solid #202a3a; vertical-align:top;}
+  tr:nth-child(even) td{background:#1a2130;}
+  .step{background:var(--panel); border:1px solid var(--line);
+    border-left:4px solid var(--hw); border-radius:5px;
+    padding:.8rem 1rem; margin:.8rem 0;}
+  .step b{color:var(--hw);}
+  .note{background:var(--panel); border:1px solid var(--line);
+    border-left:4px solid var(--ok); border-radius:5px;
+    padding:.6rem .9rem; margin:.7rem 0; font-size:.87rem;}
+  .warn{border-left-color:var(--err);}
+  .toc{background:var(--panel); border:1px solid var(--line); border-radius:5px;
+    padding:.8rem 1.1rem; margin:.8rem 0; font-size:.9rem;}
+  .toc a{color:var(--txt); text-decoration:none; display:block; padding:.15rem 0;}
+  .toc a:hover{color:var(--hw);}
+  .toc a::before{content:"→ "; color:var(--hw);}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="tag">N4 IMPORT</span>
+  <h1>Anleitung: PointCheckout → Niagara 4.15</h1>
+  <span class="spacer"></span>
+  <a class="navlink" href="index.html">← zurück zum Tool</a>
+</header>
+
+<main>
+
+<div class="toc">
+  <a href="#ueberblick">1 · Überblick</a>
+  <a href="#webtool">2 · Web-Tool: Punktliste vorbereiten</a>
+  <a href="#robot">3 · Robot einrichten (einmalig)</a>
+  <a href="#csv">4 · CSV in die Station bringen</a>
+  <a href="#execute">5 · Import ausführen</a>
+  <a href="#fehler">6 · Fehlerbehebung</a>
+  <a href="#referenz">7 · Referenz: Typ-Mapping &amp; CSV-Spalten</a>
+</div>
+
+<h2 id="ueberblick">1 · Überblick</h2>
+<p>Der Workflow in fünf Schritten:</p>
+<ol>
+  <li><b>Web-Tool:</b> PointCheckout-Excel hochladen, Fallback/Alarme/Checkboxen setzen</li>
+  <li><b>CSV herunterladen</b> (Niagara-Format, UTF-8, Komma-getrennt)</li>
+  <li><b>Robot</b> einmalig als <code>Program</code>-Objekt in der Station einrichten</li>
+  <li><b>CSV</b> in den <code>shared</code>-Ordner der Station kopieren</li>
+  <li><b>Execute</b> – der Robot legt alle Punkte inkl. Facets, Fallback, Alarm-Extensions und Prioritäts-Flags an</li>
+</ol>
+<div class="note">Bereits vorhandene Punkte werden übersprungen – der Robot kann gefahrlos mehrfach laufen.</div>
+
+<h2 id="webtool">2 · Web-Tool: Punktliste vorbereiten</h2>
+<ol>
+  <li>PointCheckout-Excel (<code>.xlsx</code>) per Drag&amp;Drop auf die Startseite ziehen</li>
+  <li>Zähler-Kacheln prüfen: stimmt die Anzahl pro Punkttyp?</li>
+  <li>Mit den Filtern (Anlage / Typ) die Ansicht eingrenzen</li>
+  <li>Werte setzen – einzeln in der Tabelle oder via <b>Schnell-Ausfüllen</b> (wirkt auf alle gefilterten Zeilen):
+    <ul>
+      <li><b>fallback</b> – Startwert/Sollwert bei Writables</li>
+      <li><b>lowAlarm / highAlarm</b> – OutOfRange-Grenzen (nur Numeric)</li>
+      <li><b>alarm</b> – Checkbox: AlarmSourceExt anhängen ja/nein</li>
+      <li><b>bacnetExt</b> – Checkbox: Punkt für BACnet-Export vormerken</li>
+      <li><b>units</b> – Engineering-Einheit (Dropdown)</li>
+      <li><b>signal (AI)</b> – Fühlertyp: Pt1000, NTC 20kΩ, 0-10V, … (Mehrfachauswahl)</li>
+      <li><b>NC</b> – bei BI/BO: markiert = Öffner (NC), leer = Schliesser (NO)</li>
+    </ul>
+  </li>
+  <li><b>«Niagara-CSV herunterladen»</b> (alle Punkte) oder <b>«Auswahl als CSV»</b> (nur Filter)</li>
+</ol>
+<div class="note">Spaltenbreiten lassen sich am rechten Rand jeder Überschrift ziehen und werden im Browser gespeichert. Die Daten bleiben komplett lokal – nichts wird hochgeladen.</div>
+
+<h2 id="robot">3 · Robot einrichten (einmalig pro Station)</h2>
+
+<div class="step"><b>Schritt 1 – Program anlegen:</b><br>
+Nav-Baum → <code>Config</code> (oder Zielbereich) → Rechtsklick → New → Palette <code>program</code> → Komponente <b>Program</b> → Name: <code>PunktImport</code></div>
+
+<div class="step"><b>Schritt 2 – Slots anlegen:</b><br>
+PunktImport doppelklicken → Reiter <b>Slots</b> → drei Slots hinzufügen, alle Typ <code>baja:String</code>:<br>
+<code>csvPfad</code> · <code>zielOrdner</code> · <code>statusText</code><br>
+⚠️ Exakte Schreibweise – der Code greift per Name darauf zu (csv, nicht cvs!).</div>
+
+<div class="step"><b>Schritt 3 – Imports hinzufügen:</b><br>
+Reiter <b>Imports</b> → Button <b>«Import Package»</b> → nacheinander:
+<table>
+<tr><th>Module</th><th>Package</th></tr>
+<tr><td><code>control-rt</code></td><td><code>javax.baja.control</code></td></tr>
+<tr><td><code>alarm-rt</code></td><td><code>javax.baja.alarm.ext</code></td></tr>
+<tr><td><code>alarm-rt</code></td><td><code>javax.baja.alarm.ext.offnormal</code></td></tr>
+<tr><td><code>baja</code></td><td><code>javax.baja.naming</code></td></tr>
+<tr><td><code>baja</code></td><td><code>javax.baja.units</code></td></tr>
+<tr><td><code>baja</code></td><td><code>javax.baja.file</code></td></tr>
+</table>
+Hinweis: <code>javax.baja.units</code> und <code>javax.baja.file</code> liegen im Modul <b>baja</b> – es gibt kein eigenes units-rt.</div>
+
+<div class="step"><b>Schritt 4 – Code einfügen:</b><br>
+Auf der Startseite <b>«Robot-Code herunterladen»</b> klicken (geht ohne Punktliste) → Datei öffnen → den kompletten Java-Teil (ab <code>public void onExecute()</code>) in den <b>Edit</b>-Tab kopieren → <b>Compile &amp; Save</b> (Hammer-Symbol).<br>
+Ziel: grüner Punkt <b>«Program is up-to-date»</b>. Das orange «not signed» ist normal und stört nicht.</div>
+
+<h2 id="csv">4 · CSV in die Station bringen</h2>
+<div class="warn note">⚠️ <b>Nicht</b> mit <code>C:\…</code>-Pfaden arbeiten – der Security Manager der Station blockiert direkte Dateizugriffe. Immer den <code>shared</code>-Ordner + <code>file:^</code>-ORD verwenden.</div>
+<ol>
+  <li>Nav-Baum: <b>Station → Files</b> → Ordner <code>shared</code> öffnen (falls fehlt: Rechtsklick Files → New → Folder)</li>
+  <li>Die heruntergeladene CSV per Copy/Paste oder Drag&amp;Drop aus «My File System» hineinkopieren</li>
+  <li>Im Property Sheet von PunktImport eintragen:</li>
+</ol>
+<pre>csvPfad     file:^shared/punkte.csv
+zielOrdner  station:|slot:/Test_Punkte     (Beispiel – siehe unten)</pre>
+<p><b>zielOrdner exakt ermitteln:</b> Im Nav-Baum auf den Zielordner doppelklicken → in der Adressleiste steht der komplette ORD, z.B. <code>local:|foxs:|station:|slot:/Test_Punkte</code> → nur den Teil ab <code>station:</code> übernehmen. Der Ordner muss bereits existieren.</p>
+<div class="note">Auf dem Jace ist der Ablauf identisch: CSV via FileTransferClient in den shared-Ordner, <code>file:^shared/…</code> bleibt unverändert gültig.</div>
+
+<h2 id="execute">5 · Import ausführen</h2>
+<ol>
+  <li>Property Sheet: <b>Save</b> (Diskette)</li>
+  <li>Rechtsklick auf <b>PunktImport → Actions → Execute</b></li>
+  <li><b>Refresh</b> drücken → <code>statusText</code> lesen:</li>
+</ol>
+<pre>Neu: 23 | Vorhanden: 0 | Fehler: 0 | BACnet markiert: 5</pre>
+<p>Danach stichprobenartig prüfen: Einheiten am AI, trueText/falseText am BV, AlarmExt mit Limits am NumericWritable, sichtbare <code>in1/in8/in16</code> im Slot Sheet (Operator-Flag für EBI/BACnet-Schreibzugriff auf Prio 1/8/16).</p>
+<div class="note"><b>BACnet-Export:</b> Die mit bacnetExt markierten Punkte in Workbench multi-selektieren und per Drag&amp;Drop auf <code>Drivers → BacnetNetwork → Local Device → Export Table</code> ziehen.</div>
+
+<h2 id="fehler">6 · Fehlerbehebung</h2>
+<table>
+<tr><th>Meldung</th><th>Ursache → Lösung</th></tr>
+<tr><td><code>package javax.baja.control does not exist</code></td>
+<td>Import fehlt → Imports-Tab, Tabelle aus Schritt 3 vervollständigen</td></tr>
+<tr><td><code>cannot find symbol: SlotPath</code> / <code>BFormat</code></td>
+<td>Alte Code-Version → frischen Robot-Code von dieser Seite laden (SlotPath liegt in javax.baja.naming, BFormat in javax.baja.util)</td></tr>
+<tr><td><code>AccessControlException: access denied FilePermission</code></td>
+<td>Direkter C:\-Pfad verwendet → CSV in <code>shared</code> legen, <code>file:^shared/…</code> als csvPfad</td></tr>
+<tr><td><code>UnresolvedException: /Plant/…</code> (zielOrdner)</td>
+<td>Ordner existiert dort nicht → ORD via Doppelklick + Adressleiste ermitteln</td></tr>
+<tr><td><code>CSV nicht gefunden: file:^shared/…</code></td>
+<td>Datei liegt nicht im shared-Ordner der laufenden Station → Abschnitt 4 prüfen</td></tr>
+<tr><td>statusText bleibt leer</td>
+<td>Refresh-Button drücken; Execute wirklich über Actions ausgelöst?</td></tr>
+<tr><td><code>uses unchecked or unsafe operations</code></td>
+<td>Nur eine Warnung – kompiliert trotzdem, ignorieren</td></tr>
+<tr><td>«Program is not signed» (orange)</td>
+<td>Normal bei Program-Objekten – kein Handlungsbedarf</td></tr>
+</table>
+
+<h2 id="referenz">7 · Referenz</h2>
+<h3>Typ-Mapping</h3>
+<table>
+<tr><th>Point Type (CPO)</th><th>Niagara-Klasse</th><th>Alarm-Algorithmus</th></tr>
+<tr><td>Analog Input</td><td>bacnet:NumericPoint</td><td>OutOfRange</td></tr>
+<tr><td>Analog Output / Value</td><td>bacnet:NumericWritable</td><td>OutOfRange</td></tr>
+<tr><td>Binary Input</td><td>bacnet:BooleanPoint</td><td>ChangeOfState</td></tr>
+<tr><td>Binary Output / Value</td><td>bacnet:BooleanWritable</td><td>ChangeOfState</td></tr>
+<tr><td>MultiState Value</td><td>bacnet:EnumWritable</td><td>–</td></tr>
+<tr><td>Accumulator</td><td>bacnet:NumericPoint</td><td>OutOfRange</td></tr>
+</table>
+<h3>CSV-Spalten</h3>
+<p><code>name · displayName · type · bacnetObjectType · units · facets.stateText · terminalAddress · plant · fallback · lowLimit · highLimit · alarmEnable · bacnetExport · signalType · contact</code></p>
+<p><code>signalType</code> (Pt1000, 0-10V, …) und <code>contact</code> (NO/NC) sind Doku-/IO-Konfigurationsspalten – der Robot ignoriert sie beim Anlegen; sie dienen der späteren Panelbus-Zuordnung.</p>
+
+</main>
+</body>
+</html>
