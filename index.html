@@ -595,7 +595,13 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 //   ignoriert sie beim Anlegen der Punkte.
 // ════════════════════════════════════════════════════════════════════
 
-public void onExecute() throws Exception
+public void onExecute()
+{
+  try { importiere(); }
+  catch (Exception e) { setString("statusText", "FEHLER: " + e.toString()); }
+}
+
+private void importiere() throws Exception
 {
   String pfad = getString("csvPfad");
   String zielS = getString("zielOrdner");
