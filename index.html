@@ -574,9 +574,16 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 // 1. Workbench: Station -> Config -> Rechtsklick -> New -> Program
 //    (Palette "program", Komponente "Program"), Name: PunktImport
 // 2. Doppelklick -> Slots-Tab -> 3 Slots anlegen (alle baja:String):
-//      csvPfad      file:^shared/punkte.csv
-//                   (ORD relativ zum Station-Home - NICHT C:\... verwenden,
-//                   der Security Manager blockiert direkte Dateizugriffe!)
+//      csvPfad      file:^punkte.csv   (Dateiname anpassen)
+//                   Das ^ zeigt auf das StationHome der LAUFENDEN Station.
+//                   Wo das liegt, verraet dir der Robot selbst: einfach
+//                   einmal Execute druecken -> die Fehlermeldung zeigt
+//                   "StationHome: C:\ProgramData\..." -> CSV per Windows
+//                   Explorer genau dorthin kopieren -> nochmal Execute.
+//                   NIEMALS C:\...-Pfade in csvPfad eintragen (Security
+//                   Manager blockiert das) und NICHT die shared-Ordner
+//                   unter C:\Users\...\Niagara4.15 verwenden (das sind
+//                   Workbench-Kopien, die Station sieht sie nicht).
 //      zielOrdner   z.B. station:|slot:/Punkte   (Ordner muss existieren!
 //                   Exakten Pfad pruefen: Doppelklick auf den Ordner ->
 //                   ORD steht in der Adressleiste, Teil ab station: kopieren)
@@ -591,10 +598,11 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 //      baja       : javax.baja.naming
 //      baja       : javax.baja.units
 //      baja       : javax.baja.file
-// 4. CSV in die Station kopieren - am einfachsten in Workbench:
-//    Nav-Baum -> Station -> Files -> Ordner "shared" (ggf. anlegen)
-//    -> CSV per Copy/Paste oder Drag&Drop hineinkopieren
-//    (auf dem Jace: FileTransferClient -> shared-Ordner)
+// 4. CSV in die Station kopieren:
+//    Lokale Station: Windows Explorer -> StationHome-Pfad (siehe oben,
+//    via Fehlermeldung ermitteln, typisch C:\ProgramData\Niagara4.15\...)
+//    Jace: FileTransferClient -> shared-Ordner, csvPfad dann
+//    file:^shared/punkte.csv
 // 5. Rechtsklick auf Program -> Actions -> Execute
 //    -> statusText zeigt: Neu / Vorhanden / Fehler
 //
