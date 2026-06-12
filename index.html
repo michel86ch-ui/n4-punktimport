@@ -71,7 +71,7 @@
   #tablewrap{display:none; margin-top:.8rem; border:1px solid var(--line);
     border-radius:5px; overflow:auto; max-height:68vh; background:var(--panel);}
   #tablewrap.show{display:block;}
-  table{border-collapse:collapse; table-layout:fixed; min-width:100%; font-size:.78rem;}
+  table{border-collapse:collapse; table-layout:fixed; font-size:.78rem;}
   thead th{position:sticky; top:0; z-index:2; background:#0d1219; color:var(--dim);
     font-weight:600; text-align:left; padding:.5rem .55rem;
     border-bottom:2px solid var(--line); white-space:nowrap; overflow:hidden;
@@ -95,6 +95,19 @@
   td input[type=number]::-webkit-inner-spin-button{display:none;}
   td input[type=checkbox]{accent-color:var(--hw); width:15px; height:15px; cursor:pointer;}
   td.center{text-align:center;}
+  td select.cell{width:100%; font-size:.74rem; font-family:"Consolas",monospace;
+    background:#0d1219; color:var(--txt); border:1px solid var(--line);
+    border-radius:3px; padding:.12rem .2rem; cursor:pointer;}
+  .sigbtn{width:100%; font-size:.72rem; font-family:"Consolas",monospace; text-align:left;
+    background:#0d1219; color:var(--txt); border:1px solid var(--line);
+    border-radius:3px; padding:.15rem .35rem; cursor:pointer;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sigbtn:empty::before{content:"– wählen –"; color:var(--dim);}
+  #sigdrop{position:fixed; z-index:50; display:none; background:var(--panel2);
+    border:1px solid var(--hw); border-radius:5px; padding:.5rem .65rem;
+    box-shadow:0 6px 18px rgba(0,0,0,.5); font-size:.8rem;}
+  #sigdrop label{display:flex; align-items:center; gap:.45rem; padding:.18rem 0; cursor:pointer; white-space:nowrap;}
+  #sigdrop input{accent-color:var(--hw);}
 
   footer{margin:1.6rem 0 1rem; padding:0 1.2rem; color:var(--dim); font-size:.74rem; line-height:1.55;}
   footer code{font-family:"Consolas",monospace; color:var(--txt);}
@@ -148,6 +161,7 @@
       <tbody id="tbody"></tbody>
     </table>
   </div>
+  <div id="sigdrop"></div>
 </main>
 
 <footer>
@@ -187,8 +201,10 @@ const COLS = [
   {key:"display",   lbl:"displayName",     w:240},
   {key:"type",      lbl:"type",            w:165},
   {key:"bacType",   lbl:"bacnetObjType",   w:120},
-  {key:"units",     lbl:"units",           w:60},
+  {key:"units",     lbl:"units",           w:90},
+  {key:"signal",    lbl:"signal (AI)",     w:130},
   {key:"stateText", lbl:"stateText",       w:130},
+  {key:"nc",        lbl:"NC",              w:45},
   {key:"terminal",  lbl:"terminal",        w:85},
   {key:"plant",     lbl:"plant",           w:190},
   {key:"fallback",  lbl:"fallback",        w:85},
@@ -197,6 +213,12 @@ const COLS = [
   {key:"alarm",     lbl:"alarm",           w:55},
   {key:"bacnet",    lbl:"bacnetExt",       w:70}
 ];
+
+/* Zulässige Engineering-Einheiten (Dropdown) */
+const UNITS = ["","°C","K","%","RH","ppm","Pa","kPa","bar","kJ/kg","m³","m³/h","l/s","l/min","h","s","kW","kWh","W","V","mA","Hz","lux","m/s"];
+
+/* Fühler-/Signaltypen für Analog Inputs (Multiselect) */
+const SIGNALS = ["Pt1000","NTC 20kΩ","0-10V","10-0V (reverse)","4-20mA","2-10V"];
 
 let points = [];
 let srcFileName = "";
@@ -271,7 +293,8 @@ function parseSheet(ws){
       stateText: state === "NA" ? "" : state,
       terminal: term === "<Unassigned>" ? "" : term,
       plant: String(r[c.plant] || "").trim(),
-      fallback:"", low:"", high:"", alarm:false, bacnet:false
+      fallback:"", low:"", high:"", alarm:false, bacnet:false,
+      signal:[], nc:false
     });
   }
   if (!points.length) throw new Error("Keine gültigen Datenpunkte gefunden.");
@@ -320,13 +343,24 @@ function buildUI(){
 /* ── Spaltenkopf + Resize ────────────────────────────────────────────────── */
 let colWidths = COLS.map(c => c.w);
 try {
-  const saved = JSON.parse(localStorage.getItem("n4_colw") || "null");
+  const saved = JSON.parse(localStorage.getItem("n4_colw_v3") || "null");
   if (Array.isArray(saved) && saved.length === COLS.length) colWidths = saved;
 } catch(e){}
+
+function applyWidths(){
+  const cg = document.getElementById("cols");
+  let sum = 0;
+  COLS.forEach((c,i) => {
+    if (cg.children[i]) cg.children[i].style.width = colWidths[i] + "px";
+    sum += colWidths[i];
+  });
+  document.getElementById("tbl").style.width = sum + "px";
+}
 
 function buildHead(){
   const cg = document.getElementById("cols");
   cg.innerHTML = COLS.map((c,i) => '<col style="width:' + colWidths[i] + 'px">').join("");
+  applyWidths();
   const hr = document.getElementById("headrow");
   hr.innerHTML = COLS.map((c,i) =>
     '<th>' + c.lbl + '<span class="rs" data-i="' + i + '"></span></th>').join("");
@@ -339,13 +373,13 @@ function buildHead(){
       h.classList.add("active");
       const move = ev => {
         colWidths[i] = Math.max(40, startW + ev.clientX - startX);
-        cg.children[i].style.width = colWidths[i] + "px";
+        applyWidths();
       };
       const up = () => {
         h.classList.remove("active");
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", up);
-        try { localStorage.setItem("n4_colw", JSON.stringify(colWidths)); } catch(e){}
+        try { localStorage.setItem("n4_colw_v3", JSON.stringify(colWidths)); } catch(e){}
       };
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", up);
@@ -356,12 +390,12 @@ function buildHead(){
       const startX = e.touches[0].clientX, startW = colWidths[i];
       const move = ev => {
         colWidths[i] = Math.max(40, startW + ev.touches[0].clientX - startX);
-        cg.children[i].style.width = colWidths[i] + "px";
+        applyWidths();
       };
       const end = () => {
         document.removeEventListener("touchmove", move);
         document.removeEventListener("touchend", end);
-        try { localStorage.setItem("n4_colw", JSON.stringify(colWidths)); } catch(e){}
+        try { localStorage.setItem("n4_colw_v3", JSON.stringify(colWidths)); } catch(e){}
       };
       document.addEventListener("touchmove", move);
       document.addEventListener("touchend", end);
@@ -383,6 +417,15 @@ function currentFilter(){
 }
 
 function isNumericType(p){ return p.niagaraType.indexOf("Numeric") >= 0; }
+function isAI(p){ return p.type === "Analog Input"; }
+function isBIBO(p){ return p.type === "Binary Input" || p.type === "Binary Ouput" || p.type === "Binary Output"; }
+
+function unitSelect(gi, p){
+  const opts = UNITS.includes(p.units) ? UNITS : [p.units, ...UNITS];
+  return '<select class="cell" data-gi="' + gi + '" data-f="units">' +
+    opts.map(u => '<option value="' + esc(u) + '"' + (u === p.units ? " selected" : "") + '>' +
+      (u === "" ? "–" : esc(u)) + '</option>').join("") + '</select>';
+}
 
 function renderTable(){
   const idxs = currentFilter();
@@ -396,8 +439,10 @@ function renderTable(){
       '<td><span class="pt" style="background:' + TYPE_COLOR[p.type] + '">' + TYPE_SHORT[p.type] + "</span> " +
         '<span class="dimtxt mono">' + esc(p.niagaraType.replace("bacnet:","")) + "</span></td>" +
       '<td class="mono dimtxt">' + esc(p.bacType) + "</td>" +
-      "<td>" + esc(p.units) + "</td>" +
+      '<td>' + (num ? unitSelect(gi, p) : '<span class="dimtxt">–</span>') + '</td>' +
+      '<td>' + (isAI(p) ? '<button class="sigbtn" data-gi="' + gi + '">' + esc(p.signal.join(", ")) + '</button>' : '<span class="dimtxt">–</span>') + '</td>' +
       '<td class="dimtxt" title="' + esc(p.stateText) + '">' + esc(p.stateText) + "</td>" +
+      '<td class="center">' + (isBIBO(p) ? '<input type="checkbox" title="markiert = NC (Öffner), leer = NO (Schliesser)" data-gi="' + gi + '" data-f="nc"' + (p.nc ? " checked" : "") + '>' : '<span class="dimtxt">–</span>') + '</td>' +
       '<td class="mono">' + esc(p.terminal) + "</td>" +
       '<td class="dimtxt" title="' + esc(p.plant) + '">' + esc(p.plant) + "</td>" +
       '<td><input type="text" data-gi="' + gi + '" data-f="fallback" value="' + esc(p.fallback) + '"></td>' +
@@ -418,6 +463,40 @@ document.getElementById("tbody").addEventListener("input", e => {
   const p = points[+t.dataset.gi];
   if (t.type === "checkbox") p[t.dataset.f] = t.checked;
   else p[t.dataset.f] = t.value;
+});
+
+/* ── Signal-Multiselect-Dropdown (Analog Input) ──────────────────────────── */
+const sigdrop = document.getElementById("sigdrop");
+let sigGi = null;
+
+document.getElementById("tbody").addEventListener("click", e => {
+  const btn = e.target.closest(".sigbtn");
+  if (!btn) return;
+  e.stopPropagation();
+  sigGi = +btn.dataset.gi;
+  const p = points[sigGi];
+  sigdrop.innerHTML = SIGNALS.map(s =>
+    '<label><input type="checkbox" value="' + esc(s) + '"' +
+    (p.signal.includes(s) ? " checked" : "") + '> ' + esc(s) + '</label>').join("");
+  const r = btn.getBoundingClientRect();
+  sigdrop.style.left = Math.min(r.left, window.innerWidth - 200) + "px";
+  sigdrop.style.top = (r.bottom + 4) + "px";
+  sigdrop.style.display = "block";
+});
+
+sigdrop.addEventListener("change", () => {
+  if (sigGi === null) return;
+  points[sigGi].signal = [...sigdrop.querySelectorAll("input:checked")].map(i => i.value);
+});
+
+document.addEventListener("click", e => {
+  if (sigdrop.style.display === "block" && !sigdrop.contains(e.target)) {
+    sigdrop.style.display = "none";
+    if (sigGi !== null) { renderTable(); sigGi = null; }
+  }
+});
+document.getElementById("tablewrap").addEventListener("scroll", () => {
+  sigdrop.style.display = "none";
 });
 
 ["plantFilter","typeFilter","skipUnassigned"].forEach(id =>
@@ -449,13 +528,15 @@ function csvField(v){
 }
 function buildCSV(idxs){
   const head = ["name","displayName","type","bacnetObjectType","units","facets.stateText",
-                "terminalAddress","plant","fallback","lowLimit","highLimit","alarmEnable","bacnetExport"];
+                "terminalAddress","plant","fallback","lowLimit","highLimit","alarmEnable","bacnetExport",
+                "signalType","contact"];
   const lines = [head.join(",")];
   idxs.forEach(gi => {
     const p = points[gi];
     lines.push([p.name, p.display, p.niagaraType, p.bacType, p.units, p.stateText,
       p.terminal, p.plant, p.fallback, p.low, p.high,
-      p.alarm ? "true" : "false", p.bacnet ? "true" : "false"
+      p.alarm ? "true" : "false", p.bacnet ? "true" : "false",
+      p.signal.join(";"), isBIBO(p) ? (p.nc ? "NC" : "NO") : ""
     ].map(csvField).join(","));
   });
   return lines.join("\r\n");
@@ -486,8 +567,10 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 //      statusText   bleibt leer - zeigt nach Execute das Ergebnis
 // 3. Edit-Tab -> diesen Code (ab "public void onExecute") in den
 //    Code-Bereich einfuegen -> Compile & Save
-//    Falls Compile-Fehler "cannot find class": im Edit-Tab links unter
-//    Module-Liste die Module baja, control, alarm, units hinzufuegen.
+//    !! WICHTIG bei Fehler "package javax.baja.control does not exist":
+//    Im Edit-Tab oben den Bereich Imports/Module-Liste oeffnen und die
+//    Module  control, alarm, units  hinzufuegen (+ Knopf), dann erneut
+//    kompilieren. Ohne diese Eintraege kennt der Compiler die Klassen nicht.
 // 4. CSV auf die Station kopieren (FileTransferClient -> shared-Ordner)
 // 5. Rechtsklick auf Program -> Actions -> Execute
 //    -> statusText zeigt: Neu / Vorhanden / Fehler
@@ -507,6 +590,9 @@ const ROBOT_CODE = String.raw`// ═══════════════�
 // - bacnetExport=true wird gezaehlt; die Punkte selbst danach in
 //   Workbench markieren und auf die BACnet Export Table ziehen
 //   (Drag&Drop auf Drivers/BacnetNetwork/Local Device/Export Table)
+// - Spalten signalType (Pt1000, 0-10V, ...) und contact (NO/NC) sind
+//   fuer die IO-/Panelbus-Konfiguration und Doku gedacht - der Robot
+//   ignoriert sie beim Anlegen der Punkte.
 // ════════════════════════════════════════════════════════════════════
 
 public void onExecute() throws Exception
