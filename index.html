@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N4 Punktimport – PointCheckout → Niagara CSV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#10151d; --panel:#171e29; --panel2:#1d2634; --line:#2b3648;
+    --txt:#dbe4f0; --dim:#7d8ba1; --hw:#ffb000;            /* Honeywell-Amber */
+    --ai:#4da3ff; --ao:#2f7fd6; --av:#8fc3ff;
+    --bi:#54c878; --bo:#2fa45c; --bv:#9adfb4;
+    --mv:#e8c84a; --acc:#ef8e5a; --err:#ff6b6b;
+    font-size:15px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    min-height:100vh;
+  }
+  /* ── Kopf wie ein Geräteschild ───────────────────────── */
+  header{
+    border-bottom:2px solid var(--hw);
+    background:linear-gradient(180deg,#141b26 0%,#10151d 100%);
+    padding:1.1rem 1.4rem .9rem;
+    display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap;
+  }
+  header .tag{
+    font-family:"Consolas","Courier New",monospace;
+    color:var(--hw); font-size:.72rem; letter-spacing:.18em;
+    border:1px solid var(--hw); padding:.15rem .5rem; border-radius:2px;
+  }
+  header h1{font-size:1.15rem; font-weight:600; letter-spacing:.02em;}
+  header .sub{color:var(--dim); font-size:.8rem;}
+  main{max-width:1180px; margin:0 auto; padding:1.4rem;}
+
+  /* ── Dropzone ────────────────────────────────────────── */
+  #drop{
+    border:2px dashed var(--line); border-radius:6px;
+    background:var(--panel);
+    padding:2.6rem 1rem; text-align:center; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  #drop.hover{border-color:var(--hw); background:var(--panel2);}
+  #drop .big{font-size:1.05rem; font-weight:600;}
+  #drop .small{color:var(--dim); font-size:.82rem; margin-top:.4rem;}
+  #drop kbd{
+    font-family:"Consolas",monospace; background:var(--panel2);
+    border:1px solid var(--line); border-radius:3px; padding:0 .35rem; font-size:.8rem;
+  }
+  input[type=file]{display:none;}
+
+  /* ── Statuszeile (LED-Stil) ──────────────────────────── */
+  #status{
+    display:none; margin-top:1rem; padding:.65rem .9rem;
+    background:var(--panel); border:1px solid var(--line); border-radius:5px;
+    font-family:"Consolas",monospace; font-size:.82rem;
+    align-items:center; gap:.6rem;
+  }
+  #status.show{display:flex;}
+  .led{width:10px;height:10px;border-radius:50%;flex:none;}
+  .led.ok{background:#54c878; box-shadow:0 0 6px #54c878;}
+  .led.err{background:var(--err); box-shadow:0 0 6px var(--err);}
+
+  /* ── Zähler-Kacheln ──────────────────────────────────── */
+  #counts{display:none; grid-template-columns:repeat(auto-fit,minmax(108px,1fr));
+    gap:.55rem; margin-top:1rem;}
+  #counts.show{display:grid;}
+  .cnt{
+    background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--c,#888);
+    border-radius:4px; padding:.5rem .65rem;
+  }
+  .cnt .n{font-family:"Consolas",monospace; font-size:1.25rem; font-weight:700;}
+  .cnt .l{color:var(--dim); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; margin-top:.1rem;}
+
+  /* ── Werkzeugleiste ──────────────────────────────────── */
+  #toolbar{display:none; margin-top:1.2rem; gap:.6rem; flex-wrap:wrap; align-items:center;}
+  #toolbar.show{display:flex;}
+  select,button{
+    font:inherit; font-size:.85rem; border-radius:4px;
+    border:1px solid var(--line); background:var(--panel2); color:var(--txt);
+    padding:.5rem .8rem; cursor:pointer;
+  }
+  select:focus,button:focus{outline:2px solid var(--hw); outline-offset:1px;}
+  button.primary{
+    background:var(--hw); color:#10151d; font-weight:700; border-color:var(--hw);
+  }
+  button.primary:hover{filter:brightness(1.08);}
+  button:disabled{opacity:.45; cursor:not-allowed;}
+  .spacer{flex:1;}
+  label.chk{display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:var(--dim); cursor:pointer;}
+  label.chk input{accent-color:var(--hw);}
+
+  /* ── Tabelle ─────────────────────────────────────────── */
+  #tablewrap{display:none; margin-top:1rem; border:1px solid var(--line);
+    border-radius:5px; overflow:auto; max-height:60vh; background:var(--panel);}
+  #tablewrap.show{display:block;}
+  table{border-collapse:collapse; width:100%; font-size:.78rem;}
+  thead th{
+    position:sticky; top:0; background:#0d1219; color:var(--dim);
+    font-weight:600; text-align:left; padding:.5rem .6rem;
+    border-bottom:2px solid var(--line); white-space:nowrap;
+    font-family:"Consolas",monospace; font-size:.72rem; letter-spacing:.04em;
+  }
+  tbody td{padding:.34rem .6rem; border-bottom:1px solid #202a3a; white-space:nowrap;}
+  tbody tr:hover{background:var(--panel2);}
+  .pt{
+    display:inline-block; font-family:"Consolas",monospace; font-size:.7rem;
+    padding:.08rem .4rem; border-radius:3px; color:#10151d; font-weight:700;
+  }
+  .mono{font-family:"Consolas",monospace;}
+  .dimtxt{color:var(--dim);}
+
+  footer{margin:2rem auto 1.2rem; max-width:1180px; padding:0 1.4rem;
+    color:var(--dim); font-size:.74rem; line-height:1.5;}
+  footer code{font-family:"Consolas",monospace; color:var(--txt);}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="tag">N4 IMPORT</span>
+  <h1>PointCheckout → Niagara CSV</h1>
+  <span class="sub">Excel-Datenpunktliste hochladen · fertige Import-CSV herunterladen · läuft komplett im Browser</span>
+</header>
+
+<main>
+  <div id="drop" tabindex="0" role="button" aria-label="Excel-Datei wählen">
+    <div class="big">PointCheckout-Excel hier ablegen</div>
+    <div class="small">oder klicken zum Auswählen — <kbd>.xlsx</kbd> mit Sheet «PointCheckout»<br>
+    Die Datei verlässt deinen Rechner nicht.</div>
+  </div>
+  <input type="file" id="file" accept=".xlsx,.xlsm,.xls">
+
+  <div id="status"><span class="led ok" id="led"></span><span id="statustxt"></span></div>
+
+  <div id="counts"></div>
+
+  <div id="toolbar">
+    <select id="plantFilter" aria-label="Anlage filtern"><option value="">Alle Anlagen</option></select>
+    <select id="typeFilter" aria-label="Punkttyp filtern"><option value="">Alle Typen</option></select>
+    <label class="chk"><input type="checkbox" id="skipUnassigned"> nur Hardware-Punkte (Terminal zugewiesen)</label>
+    <span class="spacer"></span>
+    <button id="dlFiltered">Auswahl als CSV</button>
+    <button id="dlAll" class="primary">Niagara-CSV herunterladen</button>
+  </div>
+
+  <div id="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>name</th><th>displayName</th><th>type</th><th>bacnetObjectType</th>
+          <th>units</th><th>stateText</th><th>terminal</th><th>plant</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<footer>
+  <strong>Import in Niagara 4.15:</strong> Workbench → <code>File ▸ Import ▸ CSV</code> → Zielordner (Plant-Ebene) wählen → Finish.<br>
+  CSV-Format: UTF-8, Komma-getrennt, Punkt als Dezimalzeichen — unabhängig von der Schweizer Windows-Regionaleinstellung korrekt erzeugt.<br>
+  Typ-Mapping: AI→NumericPoint · AO/AV→NumericWritable · BI→BooleanPoint · BO/BV→BooleanWritable · MSV→EnumWritable · Accumulator→NumericPoint.
+</footer>
+
+<script>
+/* ── Mapping-Tabellen ─────────────────────────────────────────────────────── */
+const TYPE_MAP = {
+  "Analog Input":     "bacnet:NumericPoint",
+  "Analog Output":    "bacnet:NumericWritable",
+  "Analog Value":     "bacnet:NumericWritable",
+  "Binary Input":     "bacnet:BooleanPoint",
+  "Binary Ouput":     "bacnet:BooleanWritable",   // Tippfehler im CPO-Export
+  "Binary Output":    "bacnet:BooleanWritable",
+  "Binary Value":     "bacnet:BooleanWritable",
+  "MultiState Value": "bacnet:EnumWritable",
+  "Accumulator":      "bacnet:NumericPoint"
+};
+const BAC_MAP = {
+  "Analog Input":"analogInput","Analog Output":"analogOutput","Analog Value":"analogValue",
+  "Binary Input":"binaryInput","Binary Ouput":"binaryOutput","Binary Output":"binaryOutput",
+  "Binary Value":"binaryValue","MultiState Value":"multiStateValue","Accumulator":"analogInput"
+};
+const TYPE_COLOR = {
+  "Analog Input":"var(--ai)","Analog Output":"var(--ao)","Analog Value":"var(--av)",
+  "Binary Input":"var(--bi)","Binary Ouput":"var(--bo)","Binary Output":"var(--bo)",
+  "Binary Value":"var(--bv)","MultiState Value":"var(--mv)","Accumulator":"var(--acc)"
+};
+const TYPE_SHORT = {
+  "Analog Input":"AI","Analog Output":"AO","Analog Value":"AV",
+  "Binary Input":"BI","Binary Ouput":"BO","Binary Output":"BO",
+  "Binary Value":"BV","MultiState Value":"MSV","Accumulator":"ACC"
+};
+
+let points = [];   // {name, display, type, niagaraType, bacType, units, stateText, terminal, plant}
+let srcFileName = "";
+
+/* ── Upload ───────────────────────────────────────────────────────────────── */
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("file");
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }});
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("hover"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("hover"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener("change", e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+function setStatus(ok, msg){
+  const s = document.getElementById("status");
+  s.classList.add("show");
+  document.getElementById("led").className = "led " + (ok ? "ok" : "err");
+  document.getElementById("statustxt").textContent = msg;
+}
+
+function handleFile(file){
+  srcFileName = file.name.replace(/\.(xlsx|xlsm|xls)$/i, "");
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:"array" });
+      // Sheet «PointCheckout» suchen – sonst erstes Sheet mit passendem Header
+      let sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("pointcheckout"))
+                   || wb.SheetNames.find(n => {
+                        const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1 });
+                        return rows.some(r => r && r.includes && r.includes("Point Name"));
+                      });
+      if (!sheetName) throw new Error("Kein Sheet «PointCheckout» (oder mit Spalte «Point Name») gefunden.");
+      parseSheet(wb.Sheets[sheetName]);
+    } catch (err) {
+      setStatus(false, "Fehler: " + err.message);
+      hideResults();
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseSheet(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
+  // Header-Zeile finden (enthält "Point Name")
+  const hIdx = rows.findIndex(r => r.includes("Point Name"));
+  if (hIdx < 0) throw new Error("Header-Zeile mit «Point Name» nicht gefunden.");
+  const H = rows[hIdx];
+  const col = label => H.indexOf(label);
+  const c = {
+    plant: col("Plant Name"), name: col("Point Name"), desc: col("Point Description"),
+    type: col("Point Type"), state: col("State Text"), unit: col("Engineering Unit"),
+    term: col("Terminal Address")
+  };
+  if (c.name < 0 || c.type < 0) throw new Error("Spalten «Point Name» / «Point Type» fehlen.");
+
+  points = [];
+  const unknownTypes = new Set();
+  for (let i = hIdx + 1; i < rows.length; i++){
+    const r = rows[i];
+    const name = String(r[c.name] || "").trim();
+    if (!name) continue;
+    const type = String(r[c.type] || "").trim();
+    if (!TYPE_MAP[type]) { if (type) unknownTypes.add(type); continue; }
+    const unit = String(r[c.unit] || "").trim();
+    const state = String(r[c.state] || "").trim();
+    const term = String(r[c.term] || "").trim();
+    points.push({
+      name,
+      display: String(r[c.desc] || "").trim() || name,
+      type,
+      niagaraType: TYPE_MAP[type],
+      bacType: BAC_MAP[type],
+      units: (unit === "NA" || unit === "no_units") ? "" : unit,
+      stateText: state === "NA" ? "" : state,
+      terminal: term === "<Unassigned>" ? "" : term,
+      plant: String(r[c.plant] || "").trim()
+    });
+  }
+  if (!points.length) throw new Error("Keine gültigen Datenpunkte gefunden.");
+
+  let msg = points.length + " Punkte geladen aus «" + srcFileName + "»";
+  if (unknownTypes.size) msg += "  ·  übersprungen (unbekannter Typ): " + [...unknownTypes].join(", ");
+  setStatus(true, msg);
+  buildUI();
+}
+
+/* ── UI-Aufbau ────────────────────────────────────────────────────────────── */
+function hideResults(){
+  ["counts","toolbar","tablewrap"].forEach(id => document.getElementById(id).classList.remove("show"));
+}
+
+function buildUI(){
+  // Zähler
+  const byType = {};
+  points.forEach(p => byType[p.type] = (byType[p.type] || 0) + 1);
+  const cnt = document.getElementById("counts");
+  cnt.innerHTML = "";
+  const order = ["Analog Input","Analog Output","Analog Value","Binary Input","Binary Ouput","Binary Value","MultiState Value","Accumulator"];
+  order.forEach(t => {
+    if (!byType[t]) return;
+    const div = document.createElement("div");
+    div.className = "cnt";
+    div.style.setProperty("--c", TYPE_COLOR[t]);
+    div.innerHTML = '<div class="n">' + byType[t] + '</div><div class="l">' + t + '</div>';
+    cnt.appendChild(div);
+  });
+  cnt.classList.add("show");
+
+  // Filter füllen
+  const plants = [...new Set(points.map(p => p.plant).filter(Boolean))].sort();
+  const pf = document.getElementById("plantFilter");
+  pf.innerHTML = '<option value="">Alle Anlagen (' + plants.length + ')</option>'
+    + plants.map(p => '<option>' + esc(p) + '</option>').join("");
+  const types = order.filter(t => byType[t]);
+  const tf = document.getElementById("typeFilter");
+  tf.innerHTML = '<option value="">Alle Typen</option>'
+    + types.map(t => '<option>' + t + '</option>').join("");
+
+  document.getElementById("toolbar").classList.add("show");
+  renderTable();
+}
+
+function currentFilter(){
+  const plant = document.getElementById("plantFilter").value;
+  const type  = document.getElementById("typeFilter").value;
+  const hwOnly = document.getElementById("skipUnassigned").checked;
+  return points.filter(p =>
+    (!plant || p.plant === plant) &&
+    (!type  || p.type === type) &&
+    (!hwOnly || p.terminal)
+  );
+}
+
+function renderTable(){
+  const rows = currentFilter();
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = rows.map(p =>
+    "<tr>" +
+    '<td class="mono">' + esc(p.name) + "</td>" +
+    "<td>" + esc(p.display) + "</td>" +
+    '<td><span class="pt" style="background:' + TYPE_COLOR[p.type] + '">' + TYPE_SHORT[p.type] + "</span> " +
+        '<span class="dimtxt mono">' + esc(p.niagaraType.replace("bacnet:","")) + "</span></td>" +
+    '<td class="mono dimtxt">' + esc(p.bacType) + "</td>" +
+    "<td>" + esc(p.units) + "</td>" +
+    '<td class="dimtxt">' + esc(p.stateText) + "</td>" +
+    '<td class="mono">' + esc(p.terminal) + "</td>" +
+    '<td class="dimtxt">' + esc(p.plant) + "</td>" +
+    "</tr>"
+  ).join("");
+  document.getElementById("tablewrap").classList.add("show");
+  document.getElementById("dlFiltered").textContent =
+    "Auswahl als CSV (" + rows.length + ")";
+}
+
+["plantFilter","typeFilter","skipUnassigned"].forEach(id =>
+  document.getElementById(id).addEventListener("change", renderTable));
+
+/* ── CSV-Export ───────────────────────────────────────────────────────────── */
+function csvField(v){
+  v = String(v == null ? "" : v);
+  return /[",\n;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function buildCSV(rows){
+  const head = ["name","displayName","type","bacnetObjectType","units","facets.stateText","bacnetObjectName","terminalAddress","plant"];
+  const lines = [head.join(",")];
+  rows.forEach(p => lines.push([
+    p.name, p.display, p.niagaraType, p.bacType, p.units, p.stateText, p.name, p.terminal, p.plant
+  ].map(csvField).join(",")));
+  return lines.join("\r\n");
+}
+function download(rows, suffix){
+  if (!rows.length) return;
+  const blob = new Blob(["\uFEFF" + buildCSV(rows)], { type:"text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (srcFileName || "punkte") + suffix + "_niagara.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById("dlAll").addEventListener("click", () => download(points, ""));
+document.getElementById("dlFiltered").addEventListener("click", () => download(currentFilter(), "_auswahl"));
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+</script>
+</body>
+</html>
