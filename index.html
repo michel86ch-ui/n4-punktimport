@@ -634,7 +634,13 @@ private void importiere() throws Exception
   String fp = pfad.startsWith("file:") ? pfad.substring(5) : pfad;
   javax.baja.file.BIFile datei = javax.baja.file.BFileSystem.INSTANCE.findFile(
     new javax.baja.file.FilePath(fp));
-  if (datei == null) throw new Exception("CSV nicht gefunden: " + pfad);
+  if (datei == null)
+  {
+    String heim = "";
+    try { heim = " | StationHome: " + javax.baja.sys.Sys.getStationHome().getAbsolutePath(); }
+    catch (Exception e2) {}
+    throw new Exception("CSV nicht gefunden: " + pfad + heim);
+  }
   java.io.BufferedReader br = new java.io.BufferedReader(
     new java.io.InputStreamReader(datei.getInputStream(), "UTF-8"));
 
