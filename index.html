@@ -770,7 +770,7 @@ private javax.baja.sys.BComponent holeUnterordner(javax.baja.sys.BComponent ziel
 {
   javax.baja.sys.BObject o = ziel.get(name);
   if (o instanceof javax.baja.sys.BComponent) return (javax.baja.sys.BComponent) o;
-  javax.baja.sys.BFolder f = new javax.baja.sys.BFolder();
+  javax.baja.util.BFolder f = new javax.baja.util.BFolder();
   ziel.add(name, f);
   return f;
 }
