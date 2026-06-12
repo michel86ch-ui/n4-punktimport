@@ -111,6 +111,11 @@
 
   footer{margin:1.6rem 0 1rem; padding:0 1.2rem; color:var(--dim); font-size:.74rem; line-height:1.55;}
   footer code{font-family:"Consolas",monospace; color:var(--txt);}
+  .navlink{color:var(--hw); text-decoration:none; font-size:.85rem; font-weight:600;}
+  .navlink:hover{text-decoration:underline;}
+  #standalone{display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;
+    margin-top:.8rem; padding:.6rem .9rem; background:var(--panel);
+    border:1px solid var(--line); border-radius:5px; font-size:.83rem;}
   @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
 </style>
 </head>
@@ -120,6 +125,8 @@
   <span class="tag">N4 IMPORT v2</span>
   <h1>PointCheckout → Niagara CSV</h1>
   <span class="sub">Excel hochladen · Fallback &amp; Alarme vorbereiten · CSV + Robot-Code herunterladen · läuft komplett im Browser</span>
+  <span class="spacer"></span>
+  <a class="navlink" href="anleitung.html">📖 Anleitung</a>
 </header>
 
 <main>
@@ -128,6 +135,12 @@
     <div class="small">oder klicken zum Auswählen — <kbd>.xlsx</kbd> mit Sheet «PointCheckout» · Die Datei verlässt deinen Rechner nicht.</div>
   </div>
   <input type="file" id="file" accept=".xlsx,.xlsm,.xls">
+
+  <div id="standalone">
+    <span class="dimtxt">Ohne Punktliste:</span>
+    <button id="dlRobot0">Robot-Code (Niagara Program) herunterladen</button>
+    <a class="navlink" href="anleitung.html">Schritt-für-Schritt-Anleitung öffnen</a>
+  </div>
 
   <div id="status"><span class="led ok" id="led"></span><span id="statustxt"></span></div>
 
@@ -847,14 +860,16 @@ private void haengeAlarmAn(javax.baja.control.BControlPoint p, String typ, Strin
 }
 `;
 
-document.getElementById("dlRobot").addEventListener("click", () => {
+document.getElementById("dlRobot").addEventListener("click", downloadRobot);
+document.getElementById("dlRobot0").addEventListener("click", downloadRobot);
+function downloadRobot(){
   const blob = new Blob([ROBOT_CODE], { type:"text/plain;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "n4_punktimport_robot.txt";
   a.click();
   URL.revokeObjectURL(a.href);
-});
+}
 
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 </script>
